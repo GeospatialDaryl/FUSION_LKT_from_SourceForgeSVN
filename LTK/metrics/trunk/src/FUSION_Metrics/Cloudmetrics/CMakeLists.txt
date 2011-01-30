@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-project (CLOUDMETRICS CXX)
+project (CloudMetrics CXX)
 
 set (SRC_FILES Cloudmetrics.cpp)
 set (HDR_FILES StdAfx.h)
@@ -34,7 +34,8 @@ set (UTIL_FILENAMES argslib.cpp
                     LidarData.cpp
                     LidarData.h
                     plansdtm.cpp
-                    plansdtm.h )
+                    plansdtm.h
+                    vc6_to_std.h )
 foreach (name ${UTIL_FILENAMES})
   list (APPEND UTIL_SRCS ${FUSION_UTIL}/${name})
 endforeach()
