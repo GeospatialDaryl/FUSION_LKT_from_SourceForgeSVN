@@ -18,6 +18,10 @@
 // Redefine types used by Visual C++ 6 (VC6) into standard C++ counterparts
 // so legacy code can be compiled by newer standard-compliant compilers.
 
+typedef bool BOOL;
+#define TRUE true
+#define FALSE false
+
 #include <string>
 
 typedef std::string CString;
