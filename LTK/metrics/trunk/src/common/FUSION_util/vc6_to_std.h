@@ -22,8 +22,17 @@ typedef bool BOOL;
 #define TRUE true
 #define FALSE false
 
+
+typedef const char * LPCTSTR;
+
+
 #include <string>
 
-typedef std::string CString;
+class CString : std::string
+{
+  public:
+    void Empty() { clear(); }
+    CString & operator=(LPCTSTR str) { assign(str); return *this; }
+};
 
 #endif
