@@ -5,7 +5,6 @@
 // 3/4/2008 changed logic in SetTerminatorLength() to look for CR and LF only. there were problems
 // determining the length of the terminator when lines contained tabs (also a control character...9)
 //
-#include "stdafx.h"
 #include "DataFile.h"
 
 #ifdef _DEBUG
