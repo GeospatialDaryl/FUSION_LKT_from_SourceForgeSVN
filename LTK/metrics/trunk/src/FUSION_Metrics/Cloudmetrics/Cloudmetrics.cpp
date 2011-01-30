@@ -107,7 +107,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "DataCatalogEntry.h"
-#include "cloudmetrics.h"
 #include "command_line_core_functions.h"
 
 #define		PROGRAM_NAME		"CloudMetrics"
