@@ -44,6 +44,10 @@ source_group("FUSION util" FILES ${UTIL_SRCS})
 
 include_directories ( ${PROJECT_SOURCE_DIR} ${FUSION_UTIL} )
 
+if (MSVC)
+  #  Disable warning C4996 about unsafe functions in stdio.h
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
 
 set (PROGRAM_NAME Cloudmetrics)
 add_executable (${PROGRAM_NAME} ${SRC_FILES} ${HDR_FILES} ${UTIL_SRCS})
