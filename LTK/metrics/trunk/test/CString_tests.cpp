@@ -222,4 +222,31 @@ BOOST_AUTO_TEST_CASE( Replace_none )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( Format_intArg )
+{
+  CString str;
+  str.Format("i = %d", 45);
+  BOOST_REQUIRE_EQUAL( str, "i = 45");
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Format_strArg )
+{
+  CString str;
+  str.Format("Hello %s!", "World");
+  BOOST_REQUIRE_EQUAL( str, "Hello World!");
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Format_3Args )
+{
+  CString str;
+  str.Format("int = %d, float = %.2f, string = \"%s\"", -123, 4.5, "Foo Bar");
+  BOOST_REQUIRE_EQUAL( str, "int = -123, float = 4.50, string = \"Foo Bar\"");
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()
