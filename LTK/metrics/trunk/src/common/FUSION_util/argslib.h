@@ -16,8 +16,7 @@
 #ifndef __ARGSLIB_H
 #define __ARGSLIB_H
 
-#include <afx.h>
-#include <string.h>
+#include "vc6_to_std.h"
 
 
 class CCommandLineParameters {
