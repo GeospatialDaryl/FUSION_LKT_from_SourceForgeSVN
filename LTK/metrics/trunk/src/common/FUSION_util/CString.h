@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef VC6_TO_STD_H
-#define VC6_TO_STD_H
+#ifndef CSTRING_H
+#define CSTRING_H
 
-// Redefine types used by Visual C++ 6 (VC6) into standard C++ counterparts
-// so legacy code can be compiled by newer standard-compliant compilers.
+// A partial implementation of the MFC CString.  Sufficient enough for FUSION
+// legacy code to compile with minimal changes.  Also the implementation must
+// must be cross-platform (standard C++).
 
-typedef bool BOOL;
-#define TRUE true
-#define FALSE false
+#include <string>
 
-
-typedef const char * LPCTSTR;
-
-#include "CString.h"
+class CString : std::string
+{
+  public:
+    void Empty();
+    CString & operator=(const char * str);
+};
 
 #endif
