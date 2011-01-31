@@ -27,6 +27,11 @@ foreach (name ${UTIL_SRC_NAMES})
 endforeach()
 source_group("FUSION Util Sources" FILES ${FUSION_UTIL_SOURCES})
 
+if (MSVC)
+  #  Disable warning C4996 about unsafe string functions
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
 set (PROGRAM_NAME fusion-util-unit-tests)
 add_executable (${PROGRAM_NAME} ${TEST_SOURCES}
                                 ${FUSION_UTIL_SOURCES})

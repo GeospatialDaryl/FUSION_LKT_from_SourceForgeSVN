@@ -54,8 +54,30 @@ class CString
       // Replace all occurrences of oldStr with newStr.  Return the number of
       // replacements.
 
+    // Fill in a printf-style string with values.
+    template<typename T1>
+    void Format(const char * formatStr, T1 val1)
+    {
+      sprintf(buffer, formatStr, val1);
+      str_ = buffer;
+    }
+    template<typename T1, typename T2>
+    void Format(const char * formatStr, T1 val1, T2 val2)
+    {
+      sprintf(buffer, formatStr, val1, val2);
+      str_ = buffer;
+    }
+    template<typename T1, typename T2, typename T3>
+    void Format(const char * formatStr, T1 val1, T2 val2, T3 val3)
+    {
+      sprintf(buffer, formatStr, val1, val2, val3);
+      str_ = buffer;
+    }
+
+
   private:
     std::string str_;
+    static char buffer[];  // for Format() method -- not thread safe
 };
 
 #endif
