@@ -30,6 +30,7 @@ class CString
     // modifiers
     void Empty();
     CString & operator=(const char * str);
+    CString & operator+=(const char * str);
 
   private:
     std::string str_;

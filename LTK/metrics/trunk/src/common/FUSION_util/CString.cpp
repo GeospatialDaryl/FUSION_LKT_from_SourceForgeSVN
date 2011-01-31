@@ -35,3 +35,11 @@ CString & CString::operator=(const char * str)
   str_ = str;
   return *this;
 }
+
+//-----------------------------------------------------------------------------
+
+CString & CString::operator+=(const char * str)
+{
+  str_ += str;
+  return *this;
+}
