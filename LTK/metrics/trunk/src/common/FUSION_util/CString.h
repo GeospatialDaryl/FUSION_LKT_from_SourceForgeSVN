@@ -31,6 +31,9 @@ class CString
     // accessors
     operator const char *() const;
 
+    // comparators
+    bool operator==(const char * str) const;
+
     // modifiers
     void Empty();
     CString & operator=(const char * str);
