@@ -91,4 +91,44 @@ BOOST_AUTO_TEST_CASE( TrimRight_noWhitespace )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( Find_inMiddle )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find("World"), 6 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_atStart )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find("He"), 0 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_atEnd )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find("!"), 11 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_multipleOccurrences )
+{
+  CString str("one:two:three");
+  BOOST_REQUIRE_EQUAL( str.Find(":t"), 3 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_notPresent )
+{
+  CString str("one:two:three");
+  BOOST_REQUIRE_EQUAL( str.Find("+"), -1 );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()
