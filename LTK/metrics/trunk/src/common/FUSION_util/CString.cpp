@@ -59,6 +59,14 @@ int CString::Find(char ch) const
 
 //-----------------------------------------------------------------------------
 
+CString CString::Mid(int startPos) const
+{
+  std::string substr = str_.substr(std::string::size_type(startPos));
+  return CString(substr.c_str());
+}
+
+//-----------------------------------------------------------------------------
+
 bool CString::operator==(const char * str) const
 {
   return str_ == str;
