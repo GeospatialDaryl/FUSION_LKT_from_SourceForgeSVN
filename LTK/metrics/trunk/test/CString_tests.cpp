@@ -171,4 +171,28 @@ BOOST_AUTO_TEST_CASE( Find_char_notPresent )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( Mid_atStart )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Mid(0), "Hello World!" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Mid_inMiddle )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Mid(5), " World!" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Mid_atEnd )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Mid(11), "!" );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()

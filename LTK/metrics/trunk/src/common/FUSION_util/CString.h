@@ -36,6 +36,10 @@ class CString
     int Find(char ch) const;
       // Find a character within the current value.  Return its position if
       // found; -1 if not found.
+    CString Mid(int startPos) const;
+      // Extract a substring starting at the given position.  The substring
+      // contains all of the characters from the start position to the end of
+      // the string.
 
     // comparators
     bool operator==(const char * str) const;
