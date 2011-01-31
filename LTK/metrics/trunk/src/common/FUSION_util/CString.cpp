@@ -16,6 +16,20 @@
 
 //-----------------------------------------------------------------------------
 
+CString::CString()
+  : str_()
+{
+}
+
+//-----------------------------------------------------------------------------
+
+CString::CString(const char * str)
+  : str_(str)
+{
+}
+
+//-----------------------------------------------------------------------------
+
 CString::operator const char *() const
 {
   return str_.c_str();
@@ -40,6 +54,6 @@ CString & CString::operator=(const char * str)
 
 CString & CString::operator+=(const char * str)
 {
-  str_ += str;
+  str_ = str;
   return *this;
 }
