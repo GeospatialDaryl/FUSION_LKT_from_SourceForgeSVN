@@ -21,11 +21,14 @@
 
 #include <string>
 
-class CString : std::string
+class CString
 {
   public:
     void Empty();
     CString & operator=(const char * str);
+
+  private:
+    std::string str_;
 };
 
 #endif

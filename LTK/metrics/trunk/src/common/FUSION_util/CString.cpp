@@ -18,13 +18,13 @@
 
 void CString::Empty()
 {
-  clear();
+  str_.clear();
 }
 
 //-----------------------------------------------------------------------------
 
 CString & CString::operator=(const char * str)
 {
-  assign(str);
+  str_ = str;
   return *this;
 }
