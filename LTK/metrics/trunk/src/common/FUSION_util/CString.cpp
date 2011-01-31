@@ -109,3 +109,20 @@ void CString::TrimRight()
   std::string::size_type nKeep = str_.rend() - itor;
   str_.erase(nKeep);
 }
+
+//-----------------------------------------------------------------------------
+
+int CString::Replace(const char * oldStr,
+                     const char * newStr)
+{
+  std::string::size_type oldStrLen = strlen(oldStr);
+  std::string::size_type newStrLen = strlen(newStr);
+  int count = 0;
+  for (std::string::size_type findPos = str_.find(oldStr);
+       findPos != std::string::npos;
+       findPos = str_.find(oldStr, findPos + newStrLen)) {
+    str_.replace(findPos, oldStrLen, newStr);
+    count++;
+  }
+  return count;
+}

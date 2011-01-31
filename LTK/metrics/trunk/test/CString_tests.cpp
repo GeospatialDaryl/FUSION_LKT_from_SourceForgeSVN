@@ -195,4 +195,31 @@ BOOST_AUTO_TEST_CASE( Mid_atEnd )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( Replace_one )
+{
+  CString str("foo bar");
+  BOOST_REQUIRE_EQUAL( str.Replace("bar", "qux"), 1 );
+  BOOST_REQUIRE_EQUAL( str, "foo qux");
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Replace_many )
+{
+  CString str("foo ABBA bar ABBA qux ABBABBA ...");
+  BOOST_REQUIRE_EQUAL( str.Replace("ABBA", "*"), 3 );
+  BOOST_REQUIRE_EQUAL( str, "foo * bar * qux *BBA ...");
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Replace_none )
+{
+  CString str("foo bar");
+  BOOST_REQUIRE_EQUAL( str.Replace("qux", "?"), 0 );
+  BOOST_REQUIRE_EQUAL( str, "foo bar");
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()
