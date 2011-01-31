@@ -55,4 +55,40 @@ BOOST_AUTO_TEST_CASE( equality_operator )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( TrimRight_oneSpace )
+{
+  CString str("foo ");
+  str.TrimRight();
+  BOOST_REQUIRE_EQUAL( str, "foo" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( TrimRight_manyWhitespace )
+{
+  CString str("foo bar \t \n");
+  str.TrimRight();
+  BOOST_REQUIRE_EQUAL( str, "foo bar" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( TrimRight_allWhitespace )
+{
+  CString str("\t\n   \t \n");
+  str.TrimRight();
+  BOOST_REQUIRE_EQUAL( str, "" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( TrimRight_noWhitespace )
+{
+  CString str("Four score and seven years ago");
+  str.TrimRight();
+  BOOST_REQUIRE_EQUAL( str, "Four score and seven years ago" );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()
