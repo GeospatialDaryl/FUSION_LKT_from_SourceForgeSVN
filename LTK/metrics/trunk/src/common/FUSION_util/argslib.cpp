@@ -90,17 +90,26 @@ int CreateParameterFromString(char *pszParams, char *argv[], int max)
 CCommandLineParameters::CCommandLineParameters(const char *switchchars /* = "-/" */)
     : szSwitchChars(switchchars)
 {
-    int maxparms = 100;
-    pszCmdLineDup = _strdup(GetCommandLine());
-    paramcount = CreateParameterFromString(pszCmdLineDup,parms,maxparms);
 }
 
 CCommandLineParameters::~CCommandLineParameters()
 {
-    if (pszCmdLineDup) {
-      free(pszCmdLineDup);
-      pszCmdLineDup = NULL;
-    }
+}
+
+void CCommandLineParameters::SetCommandLine(int argc, char *argv[])
+{
+  paramcount = argc;
+  for (int i = 0; i < argc; ++i) {
+    parms[i] = argv[i];
+    if (i > 0)
+      commandLine += ' ';
+    commandLine += argv[i];
+  }
+}
+
+const char * CCommandLineParameters::GetCommandLine() const
+{
+  return commandLine.c_str();
 }
 
 BOOL CCommandLineParameters::CheckHelp(const BOOL bNoSwitches /*= FALSE */)
