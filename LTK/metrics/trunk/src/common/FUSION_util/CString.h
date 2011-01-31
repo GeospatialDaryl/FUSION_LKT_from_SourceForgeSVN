@@ -24,6 +24,10 @@
 class CString
 {
   public:
+    // constructors
+    CString();
+    CString(const char * str);
+
     // accessors
     operator const char *() const;
 
