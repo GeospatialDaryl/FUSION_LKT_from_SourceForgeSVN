@@ -131,4 +131,44 @@ BOOST_AUTO_TEST_CASE( Find_notPresent )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( Find_char_inMiddle )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find('W'), 6 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_char_atStart )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find("H"), 0 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_char_atEnd )
+{
+  CString str("Hello World!");
+  BOOST_REQUIRE_EQUAL( str.Find('!'), 11 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_char_multipleOccurrences )
+{
+  CString str("one:two:three");
+  BOOST_REQUIRE_EQUAL( str.Find(':'), 3 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( Find_char_notPresent )
+{
+  CString str("one:two:three");
+  BOOST_REQUIRE_EQUAL( str.Find("+"), -1 );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()
