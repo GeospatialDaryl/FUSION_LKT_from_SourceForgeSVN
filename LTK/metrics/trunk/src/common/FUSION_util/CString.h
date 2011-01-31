@@ -49,6 +49,10 @@ class CString
     CString & operator=(const char * str);
     CString & operator+=(const char * str);
     void TrimRight();
+    int Replace(const char * oldStr,
+                const char * newStr);
+      // Replace all occurrences of oldStr with newStr.  Return the number of
+      // replacements.
 
   private:
     std::string str_;
