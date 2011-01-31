@@ -35,6 +35,7 @@ class CString
     void Empty();
     CString & operator=(const char * str);
     CString & operator+=(const char * str);
+    void TrimRight();
 
   private:
     std::string str_;

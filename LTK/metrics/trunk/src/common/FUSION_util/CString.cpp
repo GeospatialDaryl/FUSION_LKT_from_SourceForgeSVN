@@ -57,3 +57,18 @@ CString & CString::operator+=(const char * str)
   str_ = str;
   return *this;
 }
+
+//-----------------------------------------------------------------------------
+
+void CString::TrimRight()
+{
+  // Search backward from end of string for last non-whitespace character.
+  std::string::reverse_iterator itor;
+  for (itor = str_.rbegin(); itor < str_.rend(); ++itor) {
+    if (! isspace(*itor))
+      break;
+  }
+  // # of characters to keep (not erase)
+  std::string::size_type nKeep = str_.rend() - itor;
+  str_.erase(nKeep);
+}
