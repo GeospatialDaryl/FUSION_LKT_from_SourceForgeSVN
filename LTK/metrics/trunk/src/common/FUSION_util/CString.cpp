@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef VC6_TO_STD_H
-#define VC6_TO_STD_H
-
-// Redefine types used by Visual C++ 6 (VC6) into standard C++ counterparts
-// so legacy code can be compiled by newer standard-compliant compilers.
-
-typedef bool BOOL;
-#define TRUE true
-#define FALSE false
-
-
-typedef const char * LPCTSTR;
-
 #include "CString.h"
 
-#endif
+//-----------------------------------------------------------------------------
+
+void CString::Empty()
+{
+  clear();
+}
+
+//-----------------------------------------------------------------------------
+
+CString & CString::operator=(const char * str)
+{
+  assign(str);
+  return *this;
+}
