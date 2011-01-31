@@ -24,6 +24,8 @@ public:
     CCommandLineParameters(const char *switchchars = "/");
     ~CCommandLineParameters();
 public:
+    void SetCommandLine(int argc, char *argv[]);
+
     BOOL CheckHelp(const BOOL bNoSwitches = FALSE);
 
     int ParamCount() { return paramcount; }
@@ -40,14 +42,15 @@ public:
     int GetSwitchInt(const char *sz, const int iDefault = -1, const BOOL bCase = FALSE);
     CString GetNonSwitchStr(const BOOL bBreakAtSwitch = TRUE, const BOOL bFirstOnly = FALSE);
 
-
 private:
     BOOL IsSwitch(const char *sz);
     const char *szSwitchChars;
     char *parms[100];
-    char *pszCmdLineDup;
     int maxparms;
     int paramcount;
+
+    const char * GetCommandLine() const;
+    std::string commandLine;
 };
 
 
