@@ -33,6 +33,9 @@ class CString
     int Find(const char * str) const;
       // Find a string within the current value.  Return its position if found;
       // -1 if not found.
+    int Find(char ch) const;
+      // Find a character within the current value.  Return its position if
+      // found; -1 if not found.
 
     // comparators
     bool operator==(const char * str) const;

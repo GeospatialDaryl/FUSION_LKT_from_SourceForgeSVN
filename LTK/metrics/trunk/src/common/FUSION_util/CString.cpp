@@ -48,6 +48,17 @@ int CString::Find(const char * str) const
 
 //-----------------------------------------------------------------------------
 
+int CString::Find(char ch) const
+{
+  std::string::size_type findPos = str_.find(ch);
+  if (findPos == std::string::npos)
+    return -1;
+  else
+    return int(findPos);
+}
+
+//-----------------------------------------------------------------------------
+
 bool CString::operator==(const char * str) const
 {
   return str_ == str;
