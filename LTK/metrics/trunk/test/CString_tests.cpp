@@ -45,4 +45,14 @@ BOOST_AUTO_TEST_CASE( str_constructor )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( equality_operator )
+{
+  const char * initial_str = "foo bar";
+  CString str(initial_str);
+
+  BOOST_REQUIRE( str == initial_str );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_SUITE_END()

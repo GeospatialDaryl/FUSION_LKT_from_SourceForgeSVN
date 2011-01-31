@@ -37,6 +37,13 @@ CString::operator const char *() const
 
 //-----------------------------------------------------------------------------
 
+bool CString::operator==(const char * str) const
+{
+  return str_ == str;
+}
+
+//-----------------------------------------------------------------------------
+
 void CString::Empty()
 {
   str_.clear();
