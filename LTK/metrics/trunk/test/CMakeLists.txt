@@ -21,7 +21,9 @@ set (FUSION_UTIL_SRC_DIR  ${FUSION_METRICS_ROOT}/src/common/FUSION_util)
 include_directories (${FUSION_UTIL_SRC_DIR})
 
 set (UTIL_SRC_NAMES CString.cpp
-                    CString.h )
+                    CString.h
+                    getApplicationPath.cpp
+                    getApplicationPath.h )
 foreach (name ${UTIL_SRC_NAMES})
   list (APPEND FUSION_UTIL_SOURCES ${FUSION_UTIL_SRC_DIR}/${name})
 endforeach()
