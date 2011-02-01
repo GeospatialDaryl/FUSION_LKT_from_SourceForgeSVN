@@ -14,6 +14,7 @@
 
 #define BOOST_TEST_DYN_LINK
 
+#include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include "getApplicationPath.h"
@@ -22,10 +23,13 @@ BOOST_AUTO_TEST_SUITE( getApplicationPath_tests )
 
 //-----------------------------------------------------------------------------
 
-BOOST_AUTO_TEST_CASE( notEmpty )
+BOOST_AUTO_TEST_CASE( fileExists )
 {
   const char * const appPath = getApplicationPath();
   BOOST_TEST_MESSAGE( "application path = \"" << appPath << "\"" );
+
+  BOOST_REQUIRE( boost::filesystem::exists(appPath) );
+  BOOST_REQUIRE( boost::filesystem::is_regular_file(appPath) );
 }
 
 //-----------------------------------------------------------------------------

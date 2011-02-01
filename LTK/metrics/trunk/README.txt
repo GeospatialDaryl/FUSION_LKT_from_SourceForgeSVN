@@ -36,6 +36,8 @@ Prerequisites for Building the Programs & Tests
 
        Library binaries       Used by (P=programs, T=tests)
        ----------------       -------
+       Boost.Filesystem           T
+       Boost.System               T
        Boost.Test                 T
 
 
