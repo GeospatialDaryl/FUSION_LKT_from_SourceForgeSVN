@@ -18,6 +18,8 @@
 //
 //***********************************************************************
 
+#include <cctype>
+
 #include "argslib.h"
 
 
@@ -189,6 +191,34 @@ CString CCommandLineParameters::FirstNonSwitchStr()     // 499.5 04/16/01 12:17 
     // returns the first non-switch, handles lines such as:
     // [options] file [specs]
     return GetNonSwitchStr(FALSE,TRUE);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+// Put in anonymous namespace to avoid polluting global namespace
+namespace
+{
+  int _strnicmp(const char * left,
+                const char * right,
+                int nChars)
+  {
+    for (; nChars > 0; --nChars, ++left, ++right) {
+      if (*left == '\0' && *right == '\0')
+        return 0;
+      if (*left == '\0') // but right still has characters left
+        return -1;
+      if (*right == '\0') // but left still has characters left
+        return 1;
+      int leftLowercaseChar = std::tolower(*left);
+      int rightLowercaseChar = std::tolower(*right);
+      if (leftLowercaseChar < rightLowercaseChar)
+        return -1;
+      if (leftLowercaseChar > rightLowercaseChar)
+        return 1;
+      // otherwise, the characters are equal so move onto the next position
+    }
+    return 0;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////
