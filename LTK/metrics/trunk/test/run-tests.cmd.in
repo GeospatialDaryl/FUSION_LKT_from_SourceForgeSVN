@@ -20,4 +20,5 @@ echo Boost library directory = %BOOST_LIB_DIR%
 set PATH=%BOOST_LIB_DIR%;%PATH%
 echo Added Boost library directory to PATH
 
-%TESTS%
+shift /1
+%TESTS% %*
