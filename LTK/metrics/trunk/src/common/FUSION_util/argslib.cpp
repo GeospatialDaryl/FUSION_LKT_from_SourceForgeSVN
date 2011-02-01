@@ -145,7 +145,7 @@ int CCommandLineParameters::ParamInt(const int index)
 CString CCommandLineParameters::ParamLine()
 {
     CString s;
-    char *p = strchr(GetCommandLine(),' ');
+    const char *p = strchr(GetCommandLine(),' ');
     if (p) {
         s.Format("%s",p+1);
     }
