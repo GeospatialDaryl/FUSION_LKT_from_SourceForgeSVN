@@ -2,7 +2,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include <algorithm>
+
 //#include "fusion.h"
 #include "DataIndex.h"
 #include "filespec.h"
@@ -103,12 +104,12 @@ BOOL CDataIndex::CreateIndex(LPCTSTR DataFileName, int Format, int Width, int He
 				if (MinX + MaxX + MinY + MaxY + MinZ + MaxZ == 0.0) {
 					// scan data file for min/max values
 					while (dat.ReadNextRecord(&pt)) {
-						m_Header.MinX = __min(m_Header.MinX, pt.X);
-						m_Header.MinY = __min(m_Header.MinY, pt.Y);
-						m_Header.MinZ = __min(m_Header.MinZ, pt.Elevation);
-						m_Header.MaxX = __max(m_Header.MaxX, pt.X);
-						m_Header.MaxY = __max(m_Header.MaxY, pt.Y);
-						m_Header.MaxZ = __max(m_Header.MaxZ, pt.Elevation);
+						m_Header.MinX = std::min(m_Header.MinX, pt.X);
+						m_Header.MinY = std::min(m_Header.MinY, pt.Y);
+						m_Header.MinZ = std::min(m_Header.MinZ, double(pt.Elevation));
+						m_Header.MaxX = std::max(m_Header.MaxX, pt.X);
+						m_Header.MaxY = std::max(m_Header.MaxY, pt.Y);
+						m_Header.MaxZ = std::max(m_Header.MaxZ, double(pt.Elevation));
 
 						m_Header.TotalPointsIndexed ++;
 					}
@@ -503,10 +504,10 @@ long CDataIndex::JumpToNextPointInRange(double minx, double miny, double maxx, d
 		// modified cell size calculation to add 0.1 to max data values 3/21/2006
 		double cellw = ((m_Header.MaxX + 0.1) - m_Header.MinX) / (double) m_Header.GridCellsAcross;
 		double cellh = ((m_Header.MaxY + 0.1) - m_Header.MinY) / (double) m_Header.GridCellsUp;
-		m_Range_MinCellColumn = (unsigned char) (max(0, (minx - m_Header.MinX) / cellw));
-		m_Range_MaxCellColumn = (unsigned char) (min((double) m_Header.GridCellsAcross - 1.0, (maxx - m_Header.MinX) / cellw));
-		m_Range_MinCellRow = (unsigned char) (max(0, (miny - m_Header.MinY) / cellh));
-		m_Range_MaxCellRow = (unsigned char) (min((double) m_Header.GridCellsUp - 1.0, (maxy - m_Header.MinY) / cellh));
+		m_Range_MinCellColumn = (unsigned char) (std::max(0.0, (minx - m_Header.MinX) / cellw));
+		m_Range_MaxCellColumn = (unsigned char) (std::min((double) m_Header.GridCellsAcross - 1.0, (maxx - m_Header.MinX) / cellw));
+		m_Range_MinCellRow = (unsigned char) (std::max(0.0, (miny - m_Header.MinY) / cellh));
+		m_Range_MaxCellRow = (unsigned char) (std::min((double) m_Header.GridCellsUp - 1.0, (maxy - m_Header.MinY) / cellh));
 
 		m_HaveDataRange = TRUE;
 
