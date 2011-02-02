@@ -27,4 +27,6 @@ typedef const char * LPCTSTR;
 
 #include "CString.h"
 
+#define _T(x) (x)
+
 #endif
