@@ -31,4 +31,9 @@ typedef const char * LPCTSTR;
 
 #define _T(x) (x)
 
+
+#define TRY try
+#define CATCH_ALL(pEx) catch(...)
+#define END_CATCH_ALL
+
 #endif
