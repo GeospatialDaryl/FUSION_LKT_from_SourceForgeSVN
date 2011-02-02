@@ -9,6 +9,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include "vc6_to_std.h"
+
 // save current structure packing value and set to 2 so LIDARRETURN structure doesn't have any extra padding
 #pragma pack(push, before_dataindex, 2)
 
