@@ -3,6 +3,9 @@
 #ifndef _FILESPEC
 #define _FILESPEC
 
+#include <boost/filesystem.hpp>
+
+#include "vc6_to_std.h"
 
 class CFileSpec
 {
@@ -13,7 +16,7 @@ public:
 	LPCTSTR GetShortPathName();
 	void SetTitle( LPCTSTR title ) {
 		   CString FileName = title;
-		   FileName  += m_ext;
+		   FileName  += Extension();
 		   SetFileNameEx( FileName);
 	}
 
@@ -37,18 +40,16 @@ public:
 	BOOL                    Exists();
 
 	//      Access functions
-	CString&    Drive() { return m_drive; }
-	CString&    Path()  { return m_path; }
-	CString     Directory() { return m_drive + m_path; }
-	CString     FileName()  { return m_fileName + m_ext; }
-	CString&    FileTitle() { return m_fileName; }
-	CString&    Extension() { return m_ext; }
+	CString     Drive() { return path_.root_name(); }
+	CString     Path()  { return path_.parent_path().relative_path().string(); }
+	CString     Directory() { return path_.parent_path().string(); }
+	CString     FileName()  { return path_.filename(); }
+	CString     FileTitle() { return path_.stem(); }
+	CString     Extension() { return path_.extension(); }
 	CString     FullPathNoExtension();
 
 	operator LPCTSTR() { 
-		static CString temp;
-		temp = GetFullSpec(); 
-		return temp;
+		return path_.string().c_str();
 	}          // as a C string
 
 	CString GetFullSpec();
@@ -58,19 +59,19 @@ public:
 	CString GetFileNameEx();
 	void    SetFileNameEx(LPCTSTR spec);
 	void    SetExt( LPCTSTR Ext ) {
-	   m_ext = Ext;
+	   path_.replace_extension(Ext);
 	}
 	void    SetDrive( LPCTSTR Drive ) {		// Drive letter and colon
-	   m_drive = Drive;
+     CString newPath = Drive;
+	   newPath += Path();
+	   newPath += FileName();
+     path_ = newPath;
 	}
 
 private:
-	void    Initialize();
 	void    Initialize(FS_BUILTINS spec);
-	void    UnLock();
-	void    GetShellFolder(LPCTSTR folder);
 
-	CString m_drive, m_path, m_fileName, m_ext;
+	boost::filesystem::path path_;
 };
 
 #endif

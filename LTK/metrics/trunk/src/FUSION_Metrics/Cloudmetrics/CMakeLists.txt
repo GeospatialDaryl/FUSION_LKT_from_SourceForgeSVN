@@ -5,8 +5,9 @@ project (CloudMetrics CXX)
 set (SRC_FILES Cloudmetrics.cpp)
 set (HDR_FILES StdAfx.h)
 
-#  Use some header-only Boost libraries
-find_package (Boost 1.39)
+find_package (Boost 1.39 COMPONENTS filesystem
+                                    system)
+link_directories (${Boost_LIBRARY_DIRS})
 include_directories (${Boost_INCLUDE_DIRS})
 
 
@@ -35,6 +36,8 @@ set (UTIL_FILENAMES argslib.cpp
                     DataIndex.h
                     filespec.cpp
                     filespec.h
+                    getApplicationPath.cpp
+                    getApplicationPath.h
                     LASFormatFile.cpp
                     LASFormatFile.h
                     LidarData.cpp
@@ -57,3 +60,6 @@ endif()
 
 set (PROGRAM_NAME Cloudmetrics)
 add_executable (${PROGRAM_NAME} ${SRC_FILES} ${HDR_FILES} ${UTIL_SRCS})
+target_link_libraries (${PROGRAM_NAME}
+                       ${Boost_FILESYSTEM_LIBRARY}
+                       ${Boost_SYSTEM_LIBRARY})
