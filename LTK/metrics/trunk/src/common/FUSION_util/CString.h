@@ -27,6 +27,7 @@ class CString
     // constructors
     CString();
     CString(const char * str);
+    CString(const std::string & str);
 
     // accessors
     operator const char *() const;

@@ -25,6 +25,8 @@ set (FUSION_UTIL ${COMMON_DIR}/FUSION_util)
 
 set (UTIL_FILENAMES argslib.cpp
                     argslib.h
+                    CString.cpp
+                    CString.h
                     DataCatalogEntry.cpp
                     DataCatalogEntry.h 
                     DataFile.cpp
