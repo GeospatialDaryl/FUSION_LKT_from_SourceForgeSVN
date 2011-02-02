@@ -28,7 +28,7 @@
 // for both point sample data and raster data, I needed a way to make the ASCII raster files with the correct
 // origin (either lower left corner of lower left cell or center of lower left cell).
 //
-#include <stdafx.h>
+#include <algorithm>
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
@@ -653,8 +653,8 @@ BOOL PlansDTM::LoadDTMPatch(long ll_col, long ll_pt)
 	}
 
 	if (OpenModelFile()) {
-		for (long i = ll_col; i <= min((ll_col + PATCHSIZE), (Header.columns - 1l)); i ++) {
-			if (!LoadDTMPartialProfile(i, ll_pt, min((ll_pt + PATCHSIZE), (Header.points - 1l)), lpsDTMPatch[i - ll_col]))
+		for (long i = ll_col; i <= std::min((ll_col + PATCHSIZE), (Header.columns - 1l)); i ++) {
+			if (!LoadDTMPartialProfile(i, ll_pt, std::min((ll_pt + PATCHSIZE), (Header.points - 1l)), lpsDTMPatch[i - ll_col]))
 				return(FALSE);
 		}
 
@@ -759,7 +759,7 @@ double PlansDTM::InterpolateElevPatch(double x, double y)
 
 	/* check to see if lower left corner is outside current patch */
 	if (ll_col < patch_llx || ll_col > (patch_llx + PATCHSIZE - 1l) || ll_pt < patch_lly || ll_pt > (patch_lly + PATCHSIZE - 1l)) {
-		if (!LoadDTMPatch(max(0l, ll_col - 5l), max(0l, ll_pt - 5l))) {
+		if (!LoadDTMPatch(std::max(0l, ll_col - 5l), std::max(0l, ll_pt - 5l))) {
 			return(-32767.0);
 		}
 	}
@@ -2032,7 +2032,7 @@ void PlansDTM::FillHoles(int PeakRule, int MaxCells)
 						// keep max value
 						elevsum = values[0];
 						for (k = 1; k < ncount; k ++)
-							elevsum = max(elevsum, values[k]);
+							elevsum = std::max(elevsum, values[k]);
 
 						newelev = elevsum;
 					}
@@ -2040,7 +2040,7 @@ void PlansDTM::FillHoles(int PeakRule, int MaxCells)
 						// keep min value
 						elevsum = values[0];
 						for (k = 1; k < ncount; k ++)
-							elevsum = min(elevsum, values[k]);
+							elevsum = std::min(elevsum, values[k]);
 
 						newelev = elevsum;
 					}
@@ -2204,7 +2204,7 @@ void PlansDTM::FillHoles(int PeakRule, int MaxCells)
 						// keep max value
 						elevsum = values[0];
 						for (k = 1; k < ncount; k ++)
-							elevsum = max(elevsum, values[k]);
+							elevsum = std::max(elevsum, values[k]);
 
 						newelev = elevsum;
 					}
@@ -2212,7 +2212,7 @@ void PlansDTM::FillHoles(int PeakRule, int MaxCells)
 						// keep min value
 						elevsum = values[0];
 						for (k = 1; k < ncount; k ++)
-							elevsum = min(elevsum, values[k]);
+							elevsum = std::min(elevsum, values[k]);
 
 						newelev = elevsum;
 					}
@@ -2341,8 +2341,8 @@ BOOL PlansDTM::CreateTextureSurface(int FilterSize, int Method)
 					if (e[nindex] >= 0.0) {
 						valuesum += e[nindex];
 						weightsum += 1.0;
-						WindowMin = min(e[nindex], WindowMin);
-						WindowMax = max(e[nindex], WindowMax);
+						WindowMin = std::min(e[nindex], WindowMin);
+						WindowMax = std::max(e[nindex], WindowMax);
 					}
 					nindex ++;
 				}
