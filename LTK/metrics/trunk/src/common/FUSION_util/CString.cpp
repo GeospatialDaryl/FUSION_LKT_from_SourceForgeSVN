@@ -34,6 +34,13 @@ CString::CString(const char * str)
 
 //-----------------------------------------------------------------------------
 
+CString::CString(const std::string & str)
+  : str_(str)
+{
+}
+
+//-----------------------------------------------------------------------------
+
 CString::operator const char *() const
 {
   return str_.c_str();
