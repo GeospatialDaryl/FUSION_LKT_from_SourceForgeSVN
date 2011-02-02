@@ -2,7 +2,6 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
 #include "LASFormatFile.h"
 
 #ifdef _DEBUG
@@ -255,7 +254,7 @@ BOOL CLASPublicHeaderBlock::Read(FILE *FileHandle)
 
 		// if using reading version 1.3, read start of waveform packet record
 		if (VersionMajor == 1 && VersionMinor > 2) {
-			cnt += fread(&WaveformStart, sizeof(__int64), 1, FileHandle);
+			cnt += fread(&WaveformStart, sizeof(boost::int64_t), 1, FileHandle);
 		}
 
 		// build the version identifier
@@ -337,7 +336,7 @@ BOOL CLASPublicHeaderBlock::Write(FILE *FileHandle)
 
 		// if using reading version 1.3, read start of waveform packet record
 		if (VersionMajor == 1 && VersionMinor > 2) {
-			cnt += fwrite(&WaveformStart, sizeof(__int64), 1, FileHandle);
+			cnt += fwrite(&WaveformStart, sizeof(boost::int64_t), 1, FileHandle);
 		}
 
 		// cnt should be 107...total number of values written including individual characters in strings

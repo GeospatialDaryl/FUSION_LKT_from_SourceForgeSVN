@@ -5,6 +5,10 @@ project (CloudMetrics CXX)
 set (SRC_FILES Cloudmetrics.cpp)
 set (HDR_FILES StdAfx.h)
 
+#  Use some header-only Boost libraries
+find_package (Boost 1.39)
+include_directories (${Boost_INCLUDE_DIRS})
+
 
 #  Get the root directory for the metrics tools
 get_filename_component(METRICS_TOOLS_DIR "${PROJECT_SOURCE_DIR}" PATH)
