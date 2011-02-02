@@ -23,6 +23,8 @@ typedef bool BOOL;
 #define FALSE false
 
 
+typedef       char * LPSTR;
+typedef const char * LPCSTR;
 typedef const char * LPCTSTR;
 
 #include "CString.h"
