@@ -7,7 +7,8 @@
 // a CLIDARData file to LAS (only if original file was LAS format)...still not perfect but a start at
 // switching over to use LAS files for all FUSION tasks
 //
-#include "stdafx.h"
+#include <algorithm>
+
 #include "LidarData.h"
 #include "DataIndex.h"
 #include "math.h"
@@ -349,12 +350,12 @@ BOOL CLidarData::ConvertToBinary(LPCTSTR OutputFileName, BOOL CreateIndex, BOOL 
 			fwrite(&pt, sizeof(LIDARRETURN), 1, f);
 
 			if (CreateIndex) {
-				minx = __min(minx, pt.X);
-				miny = __min(miny, pt.Y);
-				minz = __min(minz, pt.Elevation);
-				maxx = __max(maxx, pt.X);
-				maxy = __max(maxy, pt.Y);
-				maxz = __max(maxz, pt.Elevation);
+				minx = std::min(minx, pt.X);
+				miny = std::min(miny, pt.Y);
+				minz = std::min(minz, double(pt.Elevation));
+				maxx = std::max(maxx, pt.X);
+				maxy = std::max(maxy, pt.Y);
+				maxz = std::max(maxz, double(pt.Elevation));
 			}
 			ptcnt ++;
 		}
@@ -461,12 +462,12 @@ BOOL CLidarData::ConvertToLAS(LPCTSTR OutputFileName, BOOL CreateIndex, BOOL Pre
 	// count returns and get min/max XYZ
 	Rewind();
 	while (ReadNextRecord(&pt)) {
-		LASHeader.MinX = __min(LASHeader.MinX, pt.X);
-		LASHeader.MinY = __min(LASHeader.MinY, pt.Y);
-		LASHeader.MinZ = __min(LASHeader.MinZ, pt.Elevation);
-		LASHeader.MaxX = __max(LASHeader.MaxX, pt.X);
-		LASHeader.MaxY = __max(LASHeader.MaxY, pt.Y);
-		LASHeader.MaxZ = __max(LASHeader.MaxZ, pt.Elevation);
+		LASHeader.MinX = std::min(LASHeader.MinX, pt.X);
+		LASHeader.MinY = std::min(LASHeader.MinY, pt.Y);
+		LASHeader.MinZ = std::min(LASHeader.MinZ, double(pt.Elevation));
+		LASHeader.MaxX = std::max(LASHeader.MaxX, pt.X);
+		LASHeader.MaxY = std::max(LASHeader.MaxY, pt.Y);
+		LASHeader.MaxZ = std::max(LASHeader.MaxZ, double(pt.Elevation));
 
 		if (pt.ReturnNumber)
 			LASHeader.NumberOfPointsByReturn[pt.ReturnNumber - 1] ++;
