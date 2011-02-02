@@ -9,6 +9,9 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include <boost/cstdint.hpp>
+#include "vc6_to_std.h"
+
 #define		HEADERSIZE		227
 
 typedef  unsigned long ulong;
@@ -70,7 +73,7 @@ public:
 	double			MinY;							// minimum y value (after expansion using scale and offset)
 	double			MaxZ;							// maximum z value (after expansion using scale and offset)
 	double			MinZ;							// minimum z value (after expansion using scale and offset)
-	__int64			WaveformStart;					// Start of waveform data packet record...version 1.3+ only
+	boost::int64_t	WaveformStart;					// Start of waveform data packet record...version 1.3+ only
 
 	float			Version;						// combination of VersionMajor.VersionMinor
 	ushort			FileSourceID;					// version 1.1 flight line number of other grouping code
