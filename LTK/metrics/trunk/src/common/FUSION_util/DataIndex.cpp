@@ -3,14 +3,15 @@
 //////////////////////////////////////////////////////////////////////
 
 #include <algorithm>
+#include <ctime>
+
+#include <boost/filesystem.hpp>
 
 //#include "fusion.h"
 #include "DataIndex.h"
 #include "filespec.h"
 #include "datafile.h"
 #include "lidardata.h"
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -364,6 +365,16 @@ long CDataIndex::ComputeChecksum(LPCTSTR DataFileName, int UseOldMethod)
 {
 	long chksum = 0;
 
+  // --------------------------------------------------------------------------
+  // portable method of computing the original checksum (see the method dated
+  // 5/1/2006 in old code below)
+  boost::filesystem::path dataFileName = DataFileName;
+  long fileSize_low4bytes = long (boost::filesystem::file_size(dataFileName) & 0xFFFFFFFF);
+  std::time_t lastWriteTime = boost::filesystem::last_write_time(dataFileName);
+  std::tm * lastWriteTimeUTC = std::gmtime(& lastWriteTime);
+  chksum = lastWriteTimeUTC->tm_min + lastWriteTimeUTC->tm_sec + fileSize_low4bytes;
+
+  /* 
 	// using low DWORD components should catch all the details.  Not likely the modification time will keep the 
 	// same nanosecond count or that the file size will change by 2Gb chunks
 	WIN32_FILE_ATTRIBUTE_DATA attribdata;
@@ -391,6 +402,7 @@ long CDataIndex::ComputeChecksum(LPCTSTR DataFileName, int UseOldMethod)
 //	}
 	else
 		chksum = -1;
+  */
 
 	return(chksum);
 }
