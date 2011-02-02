@@ -1,7 +1,7 @@
-#include "stdafx.h"
-#include <stdlib.h>
-#include <io.h>
+#include <sstream>
+#include <stdexcept>
 
+#include "getApplicationPath.h"
 #include "FileSpec.h"
 
 CFileSpec::CFileSpec(FS_BUILTINS spec)
@@ -14,151 +14,75 @@ CFileSpec::CFileSpec(LPCTSTR spec)
 	SetFullSpec(spec);
 }
 
-void CFileSpec::Initialize()
-{
-	m_drive.GetBufferSetLength(_MAX_DRIVE);
-	m_path.GetBufferSetLength(_MAX_PATH);
-	m_fileName.GetBufferSetLength(_MAX_FNAME);
-	m_ext.GetBufferSetLength(_MAX_EXT);
-}
-
-void CFileSpec::UnLock()
-{
-	m_drive.ReleaseBuffer();
-	m_path.ReleaseBuffer();
-	m_fileName.ReleaseBuffer();
-	m_ext.ReleaseBuffer();
-
-	m_drive.FreeExtra();
-	m_path.FreeExtra();
-	m_fileName.FreeExtra();
-	m_ext.FreeExtra();
-}
-
 void CFileSpec::Initialize(FS_BUILTINS spec)
 {
-	TCHAR path[_MAX_PATH], *ptr;
-
-	Initialize();
+	path_ = "";
 
 	switch (spec) {
 	case FS_EMPTY:                                              //      Nothing
 		break;
 
 	case FS_APP:                                                //      Full application path and name
-		GetModuleFileName(NULL, path, sizeof(path));
-//		GetModuleFileName(AfxGetApp()->m_hInstance, path, sizeof(path));
-		SetFullSpec((LPCTSTR) path);
+    path_ = getApplicationPath();
 		break;
 
 	case FS_APPDIR:                                             //      Application folder
-		GetModuleFileName(NULL, path, sizeof(path));
-//		GetModuleFileName(AfxGetApp()->m_hInstance, path, sizeof(path));
-		SetFullSpec((LPCTSTR) path);
-		m_ext = "";
-		m_fileName = "";
+    path_ = getApplicationPath();
+    path_.remove_filename();
 		break;
 
 	case FS_WINDIR:                                             //      Windows folder
-		GetWindowsDirectory(path, sizeof(path));
-
-		if (path[strlen((LPCTSTR) path)] != '\\')
-			strcat(path, "\\");
-
-		SetFullSpec((LPCTSTR) path);
-		break;
+    throw std::runtime_error("CFileSpec::FS_WINDIR not implemented");
 
 	case FS_SYSDIR:                                             //      System folder
-		GetSystemDirectory(path, sizeof(path));
-
-		if (path[strlen((LPCTSTR) path)] != '\\')
-			strcat(path, "\\");
-
-		SetFullSpec((LPCTSTR) path);
-		break;
+    throw std::runtime_error("CFileSpec::FS_SYSDIR not implemented");
 
 	case FS_TMPDIR:                                             //      Temporary folder
-		GetTempPath(sizeof(path), path);
-		SetFullSpec((LPCTSTR) path);
-		break;
+    throw std::runtime_error("CFileSpec::FS_TMPDIR not implemented");
 
 	case FS_DESKTOP:                                            //      Desktop folder
-		GetShellFolder("Desktop");
-		break;
+    throw std::runtime_error("CFileSpec::FS_DESKTOP not implemented");
 
 	case FS_FAVOURITES:                                         //      Favourites folder
-		GetShellFolder("Favorites");
-		break;
+    throw std::runtime_error("CFileSpec::FS_FAVOURITES not implemented");
 
 	case FS_TEMPNAME:
-		GetTempPath(sizeof(path), path);
-		strcpy(path, ptr = _tempnam(path, "~"));
-		SetFullSpec((LPCTSTR) path);
-		free(ptr);
-		break;
+    throw std::runtime_error("CFileSpec::FS_TEMPNAME not implemented");
 
 	default:
-		#ifdef _DEBUG
-			afxDump << "Invalid initialization spec for CFileSpec, " << spec << "\n";
-		#endif
-			ASSERT(NULL);
-	}
-}
-
-void CFileSpec::GetShellFolder(LPCTSTR folder)
-{
-	HKEY  key;
-	TCHAR path[_MAX_PATH];
-	DWORD dataType,
-			 dataSize = sizeof(path);
-
-	if (RegOpenKeyEx(HKEY_CURRENT_USER,
-		"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders", 0, KEY_ALL_ACCESS,
-		&key) == ERROR_SUCCESS)	{
-	   if (RegQueryValueEx(key, folder, NULL, &dataType, (UCHAR *) path, &dataSize) == ERROR_SUCCESS) {
-		   //      We need to append a \\ here to ensure we get the full path into the path	member.  If not
-		   //      _splitpath will take the last part of the path and think it's a filename
-		   if (path[strlen((LPCTSTR) path)] != '\\')
-			   strcat(path, "\\");
-
-		   SetFullSpec((LPCTSTR) path);
-	   }
-
-	   RegCloseKey(key);
+    std::ostringstream message;
+		message << "Invalid initialization spec for CFileSpec, " << spec;
+		throw std::runtime_error(message.str());
 	}
 }
 
 //      Operations
 BOOL CFileSpec::Exists()
 {
-	return _access(GetFullSpec(), 0) == 0;
+	return boost::filesystem::exists(path_);
 }
 
 //      Access functions : Get title + ext
 CString CFileSpec::GetFileNameEx()
 {
-	return m_fileName + m_ext;
+	return FileName();  // Not sure why this functionality was duplicated
 }
 
 void CFileSpec::SetFileNameEx(LPCTSTR spec)
 {
-	m_fileName.GetBufferSetLength(_MAX_FNAME);
-	m_ext.GetBufferSetLength(_MAX_EXT);
-	_splitpath(spec, NULL, NULL, (LPTSTR) (LPCTSTR) m_fileName, (LPTSTR) (LPCTSTR) m_ext);
-	m_fileName.ReleaseBuffer();
-	m_ext.ReleaseBuffer();
-	m_fileName.FreeExtra();
-	m_ext.FreeExtra();
+  std::string newFileNameExt(spec);
+  path_ = path_.parent_path() / newFileNameExt;
 }
 
 CString CFileSpec::FullPathNoExtension()
 {
-	return m_drive + m_path + m_fileName;
+  boost::filesystem::path pathNoExt = path_.parent_path() / path_.stem();
+	return pathNoExt.string();
 }
 
 CString CFileSpec::GetFullSpec()
 {
-	return m_drive + m_path + m_fileName + m_ext;
+	return path_.string();
 }
 
 void CFileSpec::SetFullSpec(FS_BUILTINS spec)
@@ -168,18 +92,12 @@ void CFileSpec::SetFullSpec(FS_BUILTINS spec)
 
 void CFileSpec::SetFullSpec(LPCTSTR spec)
 {
-	Initialize();
-	_splitpath(spec, (LPTSTR) (LPCTSTR) m_drive, (LPTSTR) (LPCTSTR) m_path, (LPTSTR) (LPCTSTR) m_fileName, (LPTSTR) (LPCTSTR) m_ext);
-	UnLock();
+  path_ = spec;
 }
 
 LPCTSTR CFileSpec::GetShortPathName()
 {
-	static char ShortPathName[251];
-
-	::GetShortPathName ( GetFullSpec(), ShortPathName, 250);
-
-	return ShortPathName;
+  throw std::runtime_error("GetShortPathName not implemented because not cross-platform");
 }
 
 void CFileSpec::SetDirectory(LPCTSTR directory)
