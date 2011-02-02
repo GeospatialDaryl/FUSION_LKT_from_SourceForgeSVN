@@ -178,7 +178,7 @@ BOOL CDataIndex::CreateIndex(LPCTSTR DataFileName, int Format, int Width, int He
 						// rewind to start of index entries
 						fseek(m_FileHandle, 128, SEEK_SET);
 
-						for (i = 0; i < m_Header.TotalPointsIndexed; i ++) {
+						for (int i = 0; i < m_Header.TotalPointsIndexed; i ++) {
 							m_Point.Column = list[i].Column;
 							m_Point.Row = list[i].Row;
 							m_Point.Offset = list[i].Offset;
@@ -190,10 +190,10 @@ BOOL CDataIndex::CreateIndex(LPCTSTR DataFileName, int Format, int Width, int He
 						m_CellStarts = new long[m_Header.GridCellsAcross * m_Header.GridCellsUp];
 						if (m_CellStarts) {
 							// initialize starting points
-							for (i = 0; i < m_Header.GridCellsAcross * m_Header.GridCellsUp; i ++)
+							for (int i = 0; i < m_Header.GridCellsAcross * m_Header.GridCellsUp; i ++)
 								m_CellStarts[i] = -1;
 
-							for (i = 0; i < m_Header.TotalPointsIndexed; i ++) {
+							for (int i = 0; i < m_Header.TotalPointsIndexed; i ++) {
 								colrow = list[i].Column * m_Header.GridCellsUp + list[i].Row;
 								if (m_CellStarts[colrow] < 0)
 									m_CellStarts[colrow] = i;
