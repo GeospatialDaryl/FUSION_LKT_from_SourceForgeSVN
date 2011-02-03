@@ -94,11 +94,10 @@
 //	1/14/2011 CloudMetrics V2.35
 //	Restructured code to provide better organization and make it easier to maintain and distribute FUSION source code.
 //
-#include "stdafx.h"
 #include <time.h>
 #include <float.h>
 #include <math.h>
-#include "..\..\fusion\versionID.h"
+#include "../../fusion/versionID.h"
 #include "lidardata.h"
 #include "dataindex.h"
 #include "filespec.h"
