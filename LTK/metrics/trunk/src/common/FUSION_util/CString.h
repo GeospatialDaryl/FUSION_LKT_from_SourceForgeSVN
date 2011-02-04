@@ -37,10 +37,14 @@ class CString
     int Find(char ch) const;
       // Find a character within the current value.  Return its position if
       // found; -1 if not found.
+    CString Left(int nChars) const;
+      // Extract a substring of the leftmost {nChars} characters.
     CString Mid(int startPos) const;
       // Extract a substring starting at the given position.  The substring
       // contains all of the characters from the start position to the end of
       // the string.
+    bool IsEmpty() const;
+    int GetLength() const;
 
     // comparators
     bool operator==(const char * str) const;
