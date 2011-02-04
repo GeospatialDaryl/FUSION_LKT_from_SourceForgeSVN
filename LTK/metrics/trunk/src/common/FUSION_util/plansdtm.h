@@ -5,6 +5,8 @@
 #define __PLANSDTM__
 #define PATCHSIZE 10
 
+#include "vc6_to_std.h"
+
 #define		HIGHPEAKS	0
 #define		LOWPEAKS	1
 #define		NOPEAKS		-1
