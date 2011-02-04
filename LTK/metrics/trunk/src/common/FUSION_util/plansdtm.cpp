@@ -1416,8 +1416,8 @@ BOOL PlansDTM::WriteASCIIGrid(LPCTSTR FileName, double Zfactor, BOOL DataIsRaste
 	FILE* f = fopen(FileName, "wt");
 	if (f) {
 		// print header
-		fprintf(f, "ncols %i\n", Header.columns);
-		fprintf(f, "nrows %i\n", Header.points);
+		fprintf(f, "ncols %li\n", Header.columns);
+		fprintf(f, "nrows %li\n", Header.points);
 		if (DataIsRaster) {
 			fprintf(f, "xllcenter %.4lf\n", Header.origin_x);
 			fprintf(f, "yllcenter %.4lf\n", Header.origin_y);
@@ -1439,7 +1439,7 @@ BOOL PlansDTM::WriteASCIIGrid(LPCTSTR FileName, double Zfactor, BOOL DataIsRaste
 				pz = ReadInternalElevationValue(i, j);
 				if (pz < 0.0) {
 					if (Header.z_bytes == 0 || Header.z_bytes == 1)
-						fprintf(f, "%.0lf ", -32767);
+						fprintf(f, "%.0lf ", -32767.0);
 					else
 						fprintf(f, "%.4lf ", -32767.0);
 				}
@@ -1468,7 +1468,7 @@ BOOL PlansDTM::WriteSurferASCIIGrid(LPCTSTR FileName, double Zfactor)
 	if (f) {
 		// print header
 		fprintf(f, "DSAA\n");
-		fprintf(f, "%i %i\n", Header.columns, Header.points);
+		fprintf(f, "%li %li\n", Header.columns, Header.points);
 		fprintf(f, "%.4lf %.4lf\n", Header.origin_x, Header.origin_x + (double) Header.columns * Header.column_spacing);
 		fprintf(f, "%.4lf %.4lf\n", Header.origin_y, Header.origin_y + (double) Header.points * Header.point_spacing);
 		fprintf(f, "%.4lf %.4lf\n", Header.min_z, Header.max_z);
@@ -1480,7 +1480,7 @@ BOOL PlansDTM::WriteSurferASCIIGrid(LPCTSTR FileName, double Zfactor)
 				pz = ReadInternalElevationValue(i, j);
 				if (pz < 0.0) {
 					if (Header.z_bytes == 0 || Header.z_bytes == 1)
-						fprintf(f, "%.0lf ", -32767);
+						fprintf(f, "%.0lf ", -32767.0);
 					else
 						fprintf(f, "%.4lf ", -32767.0);
 				}
@@ -3083,8 +3083,8 @@ BOOL PlansDTM::WriteENVIFile(LPCTSTR FileName, LPCTSTR HeaderFileName, int Hemis
 					Header.coord_zone);
 			}
 			fprintf(f, "ENVI\n");
-			fprintf(f, "samples = %i\n", Header.columns);
-			fprintf(f, "lines = %i\n", Header.points);
+			fprintf(f, "samples = %li\n", Header.columns);
+			fprintf(f, "lines = %li\n", Header.points);
 			fprintf(f, "bands = 1\n");
 			fprintf(f, "interleave = bsq\n");
 			fprintf(f, "data type = %i\n", datatype);
@@ -3134,7 +3134,7 @@ BOOL PlansDTM::WriteASCIICSV(LPCTSTR FileName, double Zfactor)
 				if (i == 0) {
 					if (pz < 0.0) {
 						if (Header.z_bytes == 0 || Header.z_bytes == 1)
-							fprintf(f, "%.0lf", -32767);
+							fprintf(f, "%.0lf", -32767.0);
 						else
 							fprintf(f, "%.6lf", -32767.0);
 					}
@@ -3148,7 +3148,7 @@ BOOL PlansDTM::WriteASCIICSV(LPCTSTR FileName, double Zfactor)
 				else {
 					if (pz < 0.0) {
 						if (Header.z_bytes == 0 || Header.z_bytes == 1)
-							fprintf(f, ",%.0lf", -32767);
+							fprintf(f, ",%.0lf", -32767.0);
 						else
 							fprintf(f, ",%.6lf", -32767.0);
 					}
