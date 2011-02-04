@@ -70,10 +70,32 @@ int CString::Find(char ch) const
 
 //-----------------------------------------------------------------------------
 
+CString CString::Left(int nChars) const
+{
+  std::string substr = str_.substr(0, std::string::size_type(nChars));
+  return CString(substr.c_str());
+}
+
+//-----------------------------------------------------------------------------
+
 CString CString::Mid(int startPos) const
 {
   std::string substr = str_.substr(std::string::size_type(startPos));
   return CString(substr.c_str());
+}
+
+//-----------------------------------------------------------------------------
+
+bool CString::IsEmpty() const
+{
+  return str_.empty();
+}
+
+//-----------------------------------------------------------------------------
+
+int CString::GetLength() const
+{
+  return int(str_.length());
 }
 
 //-----------------------------------------------------------------------------
