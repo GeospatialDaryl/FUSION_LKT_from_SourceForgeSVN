@@ -33,6 +33,8 @@
 #include <math.h>
 #include <float.h>
 
+#include <boost/filesystem.hpp>
+
 #include "plansdtm.h"
 
 int compelev(const void *arg1, const void *arg2)
@@ -3007,7 +3009,7 @@ BOOL PlansDTM::WriteENVIFile(LPCTSTR FileName, LPCTSTR HeaderFileName, int Hemis
 			}
 			else {
 				fclose(f);
-				DeleteFile(FileName);
+				boost::filesystem::remove(FileName);
 				return(FALSE);
 			}
 		}
@@ -3100,7 +3102,7 @@ BOOL PlansDTM::WriteENVIFile(LPCTSTR FileName, LPCTSTR HeaderFileName, int Hemis
 		}
 		else {
 			// couldn't write the header file...delete data file
-			DeleteFile(FileName);
+			boost::filesystem::remove(FileName);
 		}
 	}
 	return(FALSE);
