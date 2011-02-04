@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <boost/algorithm/string.hpp>
+
 #include "CString.h"
 
 //-----------------------------------------------------------------------------
@@ -158,4 +160,11 @@ int CString::Replace(const char * oldStr,
     count++;
   }
   return count;
+}
+
+//-----------------------------------------------------------------------------
+
+void CString::MakeLower()
+{
+  boost::to_lower(str_);
 }
