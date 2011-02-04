@@ -1802,7 +1802,7 @@ BOOL PlansDTM::WriteModel(LPCTSTR FileName)
 		fseek(f, 200l, SEEK_SET);
 
 		// write elevations...depends on storage format for elevations
-		for (i = 0; i < Header.columns; i ++) {
+		for (int i = 0; i < Header.columns; i ++) {
 			if (Header.z_bytes == 0) {		// short
 				fwrite(lpsElevData[i], sizeof(short), (size_t) Header.points, f);
 			}
