@@ -106,7 +106,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "DataCatalogEntry.h"
-#include "command_line_core_functions.h"
+#include "Command_line_core_functions.h"
 
 #define		PROGRAM_NAME		"CloudMetrics"
 #define		PROGRAM_VERSION		2.35
@@ -1230,4 +1230,4 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	return m_nRetCode;
 }
 
-#include "command_line_core_functions.cpp"
+#include "Command_line_core_functions.cpp"
