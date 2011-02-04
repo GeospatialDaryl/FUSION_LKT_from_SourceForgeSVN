@@ -48,6 +48,10 @@ class CString
 
     // comparators
     bool operator==(const char * str) const;
+    int CompareNoCase(const char * str) const;
+      // Returns 0 if this string equals the given string (ignoring case).
+      // Returns -1 if this string is less than (alphabetically precedes) the
+      // given string.  Returns 1 if this string is greater than given string.
 
     // modifiers
     void Empty();
