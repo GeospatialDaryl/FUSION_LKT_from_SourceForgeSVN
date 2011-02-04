@@ -51,7 +51,10 @@ endforeach()
 source_group("FUSION util" FILES ${UTIL_SRCS})
 
 
-include_directories ( ${PROJECT_SOURCE_DIR} ${FUSION_UTIL} )
+#  The directory with the code shared by the LTK programs
+set (LTK_DIR ${COMMON_DIR}/LTK)
+
+include_directories ( ${PROJECT_SOURCE_DIR} ${FUSION_UTIL} ${LTK_DIR} )
 
 if (MSVC)
   #  Disable warning C4996 about unsafe functions in stdio.h
