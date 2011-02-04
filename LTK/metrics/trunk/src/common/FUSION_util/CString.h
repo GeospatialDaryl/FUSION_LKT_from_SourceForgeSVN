@@ -58,6 +58,7 @@ class CString
                 const char * newStr);
       // Replace all occurrences of oldStr with newStr.  Return the number of
       // replacements.
+    void MakeLower();
 
     // Fill in a printf-style string with values.
     template<typename T1>

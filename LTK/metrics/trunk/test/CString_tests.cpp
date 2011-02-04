@@ -246,6 +246,42 @@ BOOST_AUTO_TEST_CASE( Replace_none )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( MakeLower_mixed )
+{
+  CString str("Hello World.");
+  str.MakeLower();
+  BOOST_REQUIRE_EQUAL( str, "hello world." );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( MakeLower_allUpper )
+{
+  CString str("FOO BAR?!");
+  str.MakeLower();
+  BOOST_REQUIRE_EQUAL( str, "foo bar?!" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( MakeLower_alreadyLower )
+{
+  CString str("foo bar");
+  str.MakeLower();
+  BOOST_REQUIRE_EQUAL( str, "foo bar" );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( MakeLower_empty )
+{
+  CString str("");
+  str.MakeLower();
+  BOOST_REQUIRE_EQUAL( str, "" );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_CASE( Format_intArg )
 {
   CString str;
