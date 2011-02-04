@@ -55,6 +55,42 @@ BOOST_AUTO_TEST_CASE( equality_operator )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( CompareNoCase_same )
+{
+  CString str("foo bar");
+
+  BOOST_REQUIRE( str.CompareNoCase("foo bar") == 0 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( CompareNoCase_equal )
+{
+  CString str("foo bar");
+
+  BOOST_REQUIRE( str.CompareNoCase("FOO Bar") == 0 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( CompareNoCase_less )
+{
+  CString str("foo bar");
+
+  BOOST_REQUIRE( str.CompareNoCase("Foo Bar Qux") < 0 );
+}
+
+//-----------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( CompareNoCase_greater )
+{
+  CString str("foo bar");
+
+  BOOST_REQUIRE( str.CompareNoCase("Foo BaLL") > 0 );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_CASE( TrimRight_oneSpace )
 {
   CString str("foo ");

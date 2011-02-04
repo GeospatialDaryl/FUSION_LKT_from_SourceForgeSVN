@@ -109,6 +109,18 @@ bool CString::operator==(const char * str) const
 
 //-----------------------------------------------------------------------------
 
+int CString::CompareNoCase(const char * str) const
+{
+  if (boost::algorithm::iequals(str_, str))
+    return 0;
+  else if (boost::algorithm::ilexicographical_compare(str_, str))
+    return -1;
+  else
+    return 1;
+}
+
+//-----------------------------------------------------------------------------
+
 void CString::Empty()
 {
   str_.clear();
