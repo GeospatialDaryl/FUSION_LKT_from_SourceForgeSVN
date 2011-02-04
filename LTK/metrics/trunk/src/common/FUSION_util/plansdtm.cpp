@@ -2279,7 +2279,7 @@ double PlansDTM::GetGridElevation(double x, double y, BOOL ConvertElevation)
 	c = (long) floor((x - Header.origin_x) / Header.column_spacing);
 	r = (long) floor((y - Header.origin_y) / Header.point_spacing);
 
-	elev = GetGridElevation(c, r);
+	elev = GetGridElevation(int(c), int(r));  // Should the definition be changed to (long,long)?
 
 	if (ConvertElevation)
 		elev = (elev - Header.min_z) * ElevationConversion * VerticalExaggeration + Header.min_z * ElevationConversion;
