@@ -141,6 +141,11 @@
 //	references to JPEG and TIFF image libraries (can be easily controlled using #define INCLUDE_OUTLIER_IMAGE_CODE) to reduce the
 //	executable size and eliminate the need for the image code in the public distribution.
 //
+//	Added new options: /strata:[#,#,#,...] /intstrata:[#,#,#,...] /kde:[window, multiplier]
+//
+//	Added new metrics: Canopy relief ratio, height strata (elevation and intensity metrics), MAD_MED, MAD_MODE, #modes
+//	from a kernal density function using the return heights, min/max mode values, min/max range
+//
 #include "stdafx.h"
 #include "gridmetrics.h"
 #include <time.h>
@@ -176,6 +181,7 @@ static char THIS_FILE[] = __FILE__;
 
 #define		NUMBEROFBINS		64
 #define		NUMBER_OF_CLASS_CODES		32
+#define		MAX_NUMBER_OF_STRATA		32
 
 // define INCLUDE_OUTLIER_IMAGE_CODE to include code to create and outlier image. To actually create
 // the images, you need to force m_CreateOutlierImage to TRUE as there is no corresponding switch
@@ -194,6 +200,9 @@ typedef struct {
 //	float Intensity;
 	float Value;
 } PointRecord;
+
+// global functions that are modified to create a new program
+void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int& ModeCount, double& MinMode, double& MaxMode);
 
 BOOL RectanglesIntersect(double MinX1, double MinY1, double MaxX1, double MaxY1, double MinX2, double MinY2, double MaxX2, double MaxY2)
 {
@@ -230,13 +239,37 @@ int comparevalue(const void *arg1, const void *arg2)
 int comparefloat(const void *arg1, const void *arg2)
 {
 	// compare intensity values
-	if ((float*) arg1 < (float*) arg2)
+	if (*(float*) arg1 < *(float*) arg2)
 		return(-1);
-	else if ((float*) arg1 > (float*) arg2)
+	else if (*(float*) arg1 > *(float*) arg2)
 		return(1);
 	else
 		return(0);
 }
+
+// comparison function for sorting...must be global to use qsort()
+int comparePRint(const void *arg1, const void *arg2)
+{
+	if (((PointRecord*) arg1)->Value < (((PointRecord*) arg2)->Value))
+		return(-1);
+	else if (((PointRecord*) arg1)->Value > (((PointRecord*) arg2)->Value))
+		return(1);
+	else
+		return(0);
+}
+
+// comparison function for sorting...must be global to use qsort()
+int compareCellElev(const void *arg1, const void *arg2)
+{
+	if (((PointRecord*) arg1)->Elevation < (((PointRecord*) arg2)->Elevation))
+		return(-1);
+	else if (((PointRecord*) arg1)->Elevation > (((PointRecord*) arg2)->Elevation))
+		return(1);
+	else
+		return(0);
+}
+
+
 /*
 int compareintensity(const void *arg1, const void *arg2)
 {
@@ -279,7 +312,7 @@ CWinApp theApp;
 
 using namespace std;
 
-char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster";
+char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster strata intstrata kde";
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
 CArray<CString, CString> m_DataFile;
@@ -326,6 +359,8 @@ int m_StatParameter;
 BOOL m_Verbose;
 BOOL m_CreateOutlierImage;
 
+BOOL m_NoItensityMetrics;
+
 BOOL m_UseGlobalIdentifier;
 CString m_GlobalIdentifier;
 
@@ -334,6 +369,17 @@ BOOL m_NoCSVFile;
 BOOL m_IncludeSpecificClasses;
 int m_ClassCodes[NUMBER_OF_CLASS_CODES];
 int m_NumberOfClassCodes;
+
+BOOL m_DoKDEStats;
+double m_KDEBandwidthMultiplier;
+double m_KDEWindowSize;
+
+BOOL m_DoHeightStrata;
+BOOL m_DoHeightStrataIntensity;
+int m_HeightStrataCount;
+int m_HeightStrataIntensityCount;
+double m_HeightStrata[MAX_NUMBER_OF_STRATA];
+double m_HeightStrataIntensity[MAX_NUMBER_OF_STRATA];
 
 BOOL m_RasterFiles;
 BOOL m_SaveASCIIRaster;
@@ -531,6 +577,20 @@ void usage()
 	printf("  cellbuffer:# Add a buffer to the data extent specified by /grid or /gridxy\n");
 	printf("              when computing metrics but only output data for the specified\n");
 	printf("              extent. The buffer (number of cells) is added around the extent.\n");
+	printf("  strata:[#,#,...] Count returns in various height strata. # gives the upper\n");
+	printf("              limit for each strata. Returns are counted if their height\n");
+	printf("              is >= the lower limit and < the upper limit. The first strata\n");
+	printf("              contains points < the first limit. The last strata contains\n");
+	printf("              points >= the last limit. Default strata: 0.15, 1.37, 5, 10,\n");
+	printf("              20, 30.\n");
+	printf("  intstrata:[#,#,...] Compute metrics using the intensity values in various\n");
+	printf("              height strata. Strata for intensity metrics are defined in\n");
+	printf("              the same way as the /strata option. Default strata: 0.25, 1.37.\n");
+	printf("  kde:[window,mult] Compute the number of modes and minimum and maximum node\n");
+	printf("              using a kernal density estimator. Window is the width of a\n");
+	printf("              moving average smoothing window in data units and mult is a\n");
+	printf("              multiplier for the bandwidth parameter of the KDE. Default\n");
+	printf("              window is 2.5 and the multiplier is 1.0\n");
 	printf("  ascii       Store raster files in ASCII raster format for direct import\n");
 	printf("              into ArcGIS. Using this option preserves metrics with negative\n");
 	printf("              values. Such values are lost when raster data are saved in PLANS\n");
@@ -635,6 +695,15 @@ void InitializeGlobalVariables()
 	m_ForceExtent = FALSE;
 
 	m_MinHeightForMetrics = -99999.0;
+
+	m_DoKDEStats = FALSE;
+
+	m_NoItensityMetrics = FALSE;
+
+	m_DoHeightStrata = FALSE;
+	m_DoHeightStrataIntensity = FALSE;
+	m_HeightStrataCount = 0;
+	m_HeightStrataIntensityCount = 0;
 
 	m_AddBufferDistance = FALSE;
 	m_AddBufferCells = FALSE;
@@ -799,6 +868,95 @@ int ParseCommandLine()
 		}
 	}
 
+	m_DoKDEStats = m_clp.Switch("kde");
+
+	if (m_DoKDEStats) {
+		CString temp = m_clp.GetSwitchStr("kde", "");
+		if (!temp.IsEmpty()) {
+			sscanf(temp, "%lf,%lf", &m_KDEWindowSize, &m_KDEBandwidthMultiplier);
+		}
+		else {
+			// default
+			m_KDEBandwidthMultiplier = 1.0;
+			m_KDEWindowSize = 2.5;
+		}
+	}
+
+	// check for height strata options
+	m_DoHeightStrata = m_clp.Switch("strata");
+	if (m_DoHeightStrata) {
+		CString temp = m_clp.GetSwitchStr("strata", "");
+		if (!temp.IsEmpty()) {
+			m_HeightStrataCount = 0;
+			char* c = strtok(temp.LockBuffer(), ",");
+			while (c) {
+				m_HeightStrata[m_HeightStrataCount] = atof(c);
+				m_HeightStrataCount ++;
+
+				// check number of strata
+				if (m_HeightStrataCount >= MAX_NUMBER_OF_STRATA) {
+					LTKCL_PrintStatus("Too many strata for /strata...maximum is 31");
+					return(1);
+
+					// need break if we add a return variable
+//					break;
+				}
+				c = strtok(NULL, ",");
+			}
+			temp.ReleaseBuffer();
+
+			// add a final strata to define upper bound
+			m_HeightStrata[m_HeightStrataCount] = DBL_MAX;
+			m_HeightStrataCount ++;
+		}
+		else {
+			// default
+			m_HeightStrataCount = 7;
+			m_HeightStrata[0] = 0.15;
+			m_HeightStrata[1] = 1.37;
+			m_HeightStrata[2] = 5.0;
+			m_HeightStrata[3] = 10.0;
+			m_HeightStrata[4] = 20.0;
+			m_HeightStrata[5] = 30.0;
+			m_HeightStrata[6] = DBL_MAX;
+
+		}
+	}
+
+	m_DoHeightStrataIntensity = m_clp.Switch("intstrata");
+	if (m_DoHeightStrataIntensity) {
+		CString temp = m_clp.GetSwitchStr("intstrata", "");
+		if (!temp.IsEmpty()) {
+			m_HeightStrataIntensityCount = 0;
+			char* c = strtok(temp.LockBuffer(), ",");
+			while (c) {
+				m_HeightStrataIntensity[m_HeightStrataIntensityCount] = atof(c);
+				m_HeightStrataIntensityCount ++;
+				
+				if (m_HeightStrataIntensityCount >= MAX_NUMBER_OF_STRATA) {
+					LTKCL_PrintStatus("Too many strata for /intstrata...maximum is 31");
+					return(1);
+
+					// need break if we add a return variable
+//					break;
+				}
+				c = strtok(NULL, ",");
+			}
+			temp.ReleaseBuffer();
+		
+			// add a final strata to define upper bound
+			m_HeightStrataIntensity[m_HeightStrataIntensityCount] = DBL_MAX;
+			m_HeightStrataIntensityCount ++;
+		}
+		else {
+			// default
+			m_HeightStrataIntensityCount = 3;
+			m_HeightStrataIntensity[0] = 0.15;
+			m_HeightStrataIntensity[1] = 1.37;
+			m_HeightStrataIntensity[2] = DBL_MAX;
+		}
+	}
+
 	m_DoTopoMetrics = m_clp.Switch("topo");
 	if (m_DoTopoMetrics) {
 		CString csParam = m_clp.GetSwitchStr("topo", "100.0,45.0");
@@ -909,7 +1067,8 @@ int ParseCommandLine()
 //	if (m_clp.Switch("intensity"))
 //		m_StatParameter = INTENSITY_VALUE;
 
-	if (m_clp.Switch("nointensity"))
+	m_NoItensityMetrics = m_clp.Switch("nointensity");
+	if (m_NoItensityMetrics)
 		m_StatParameter = ELEVATION_VALUE;
 
 	m_CanopyHeightOffset = atof(m_clp.GetSwitchStr("vegoffset", "0.0"));
@@ -1254,6 +1413,13 @@ int ParseCommandLine()
 		return(1);
 	}
 
+	// make sure we aren't trying to compute strata metrics when not doing intensity metrics
+	if (m_NoItensityMetrics && (m_DoHeightStrataIntensity || m_DoHeightStrata)) {
+		printf("Cannot compute strata metrics without computing intensity metrics...\n");
+		printf("/strata and /intstrata cannot be used with /nointensity.\n");
+		return(1);
+	}
+
 	return(nRetCode);
 }
 
@@ -1267,7 +1433,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	int Bins[NUMBEROFBINS];
 	int TheBin;
 	CLidarData ldat;
-	int i, j, k, l, p;
+	int i, j, k, l, m, p;
 
 	// initialize MFC and print and error on failure
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -1342,6 +1508,29 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 //				LTKCL_PrintRunTime();
 
 				if (!m_nRetCode) {			// 11/10/2010 very redundent but I'm too lazy to change the structure when everything is working
+					// echo strata info
+					// verbose status with strata...don't print the last one
+					char ts[1024];
+					if (m_DoHeightStrata) {
+						sprintf(ts, "Elevation strata:");
+
+						for (int i = 0; i < m_HeightStrataCount - 1; i ++) {
+							sprintf(ts, "%s %.2lf", ts, m_HeightStrata[i]);
+						}
+						LTKCL_PrintVerboseStatus(ts);
+					}
+
+
+					// verbose status with strata...don't print the last one
+					if (m_DoHeightStrataIntensity) {
+						sprintf(ts, "Intensity strata:");
+
+						for (int i = 0; i < m_HeightStrataIntensityCount - 1; i ++) {
+							sprintf(ts, "%s %.2lf", ts, m_HeightStrataIntensity[i]);
+						}
+						LTKCL_PrintVerboseStatus(ts);
+					}
+
 					// get number of points in file and data ranges
 					double xMax=-FLT_MAX;
 					double xMin=FLT_MAX;
@@ -1792,6 +1981,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 //						float canopyelev;
 						int FirstReturns = 0;
 						PointCount = 0;
+						int TempPointCount;
 						BOOL CellInBuffer = FALSE;
 						int CellOffsetRows = 0;
 						int CellOffsetCols = 0;
@@ -2205,9 +2395,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								// declare variables used in loop...moved 10/15/2009
 								CFileSpec fs;
 								CFileSpec Fuelfs;
+								CFileSpec Stratafs;
 								CString Ft;
 								FILE* OutputFile;
 								FILE* FuelOutputFile;
+								FILE* StrataOutputFile;
 								int CurrentCellNumber;
 								int CurrentPointNumber = 0;
 								double ValueSum;
@@ -2223,7 +2415,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								int AllReturnsAboveMode;
 								int AllReturnsTotalMeanMode;
 								int CellCount;
-//								int MaxCellCount;
+								int MaxCellCount;
 								int FirstCellPoint = 0;
 								int MinPtIndex;
 								int IntensityMinPtIndex;
@@ -2236,7 +2428,81 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								double CanopyBaseHeight;
 								double CanopyHeight;
 
+								// new variables 1/24/2011
+								float* MedianDiffValueList = NULL;
+								float* ModeDiffValueList = NULL;
+								double CanopyReliefRatio, GridMadMedian, GridMadMode;
+								int KDE_ModeCount;
+								double KDE_MaxMode, KDE_MinMode, KDE_ModeRange;
+								int ElevStrataCount[MAX_NUMBER_OF_STRATA];
+								int ElevStrataCountReturn[MAX_NUMBER_OF_STRATA][11];
+								double ElevStrataMean[MAX_NUMBER_OF_STRATA];
+								double ElevStrataMin[MAX_NUMBER_OF_STRATA];
+								double ElevStrataMax[MAX_NUMBER_OF_STRATA];
+								double ElevStrataMedian[MAX_NUMBER_OF_STRATA];
+								double ElevStrataMode[MAX_NUMBER_OF_STRATA];
+								double ElevStrataSkewness[MAX_NUMBER_OF_STRATA];
+								double ElevStrataKurtosis[MAX_NUMBER_OF_STRATA];
+								double ElevStrataVariance[MAX_NUMBER_OF_STRATA];
+								double ElevStrataM2[MAX_NUMBER_OF_STRATA];		// used to compute variance
+								double ElevStrataM3[MAX_NUMBER_OF_STRATA];		// used to compute skewness & kurtosis
+								double ElevStrataM4[MAX_NUMBER_OF_STRATA];		// used to compute skewness & kurtosis
+
+								int IntStrataCount[MAX_NUMBER_OF_STRATA];
+								int IntStrataCountReturn[MAX_NUMBER_OF_STRATA][11];
+								double IntStrataMean[MAX_NUMBER_OF_STRATA];
+								double IntStrataMin[MAX_NUMBER_OF_STRATA];
+								double IntStrataMax[MAX_NUMBER_OF_STRATA];
+								double IntStrataMedian[MAX_NUMBER_OF_STRATA];
+								double IntStrataMode[MAX_NUMBER_OF_STRATA];
+								double IntStrataSkewness[MAX_NUMBER_OF_STRATA];
+								double IntStrataKurtosis[MAX_NUMBER_OF_STRATA];
+								double IntStrataVariance[MAX_NUMBER_OF_STRATA];
+								double IntStrataM2[MAX_NUMBER_OF_STRATA];		// used to compute variance
+								double IntStrataM3[MAX_NUMBER_OF_STRATA];		// used to compute skewness & kurtosis
+								double IntStrataM4[MAX_NUMBER_OF_STRATA];		// used to compute skewness & kurtosis
+								double delta;
+								double delta_n;
+								double delta_n2;
+								double term1;
+								int n1;
+								double BW;
+								// end of new variables
+
 								double x, y;
+
+								// initialize strata counts and std dev (will be used to accumulate values)
+								for (k = 0; k < MAX_NUMBER_OF_STRATA; k ++) {
+									ElevStrataCount[k] = 0;
+									ElevStrataVariance[k] = 0.0;
+									ElevStrataMean[k] = 0.0;
+									ElevStrataMin[k] = DBL_MAX;
+									ElevStrataMax[k] = DBL_MIN;
+									ElevStrataMedian[k] = 0.0;
+									ElevStrataMode[k] = 0.0;
+									ElevStrataSkewness[k] = 0.0;
+									ElevStrataKurtosis[k] = 0.0;
+									ElevStrataM2[k] = 0.0;
+									ElevStrataM3[k] = 0.0;
+									ElevStrataM4[k] = 0.0;
+									for (j = 0; j < 10; j ++)
+										ElevStrataCountReturn[k][j];
+
+									IntStrataCount[k] = 0;
+									IntStrataVariance[k] = 0.0;
+									IntStrataMean[k] = 0.0;
+									IntStrataMin[k] = DBL_MAX;
+									IntStrataMax[k] = DBL_MIN;
+									IntStrataMedian[k] = 0.0;
+									IntStrataMode[k] = 0.0;
+									IntStrataSkewness[k] = 0.0;
+									IntStrataKurtosis[k] = 0.0;
+									IntStrataM2[k] = 0.0;
+									IntStrataM3[k] = 0.0;
+									IntStrataM4[k] = 0.0;
+									for (j = 0; j < 10; j ++)
+										IntStrataCountReturn[k][j];
+								}
 
 								// set up loop to compute the intensity metrics, then the elevation metrics
 								while (m_StatParameter < METRICS_DONE) {
@@ -2339,6 +2605,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											fprintf(OutputFile, ",Total first returns");
 											fprintf(OutputFile, ",Total all returns");
 
+											fprintf(OutputFile, ",Elev MAD median,Elev MAD mode,Canopy relief ratio");
+
+											if (m_DoKDEStats)
+												fprintf(OutputFile, ",KDE elev modes,KDE elev min mode,KDE elev max mode,KDE elev mode range");
+
 											if (m_UseGlobalIdentifier) {
 												fprintf(OutputFile, ",Identifier\n");
 											}
@@ -2366,6 +2637,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 									// set up for fuel model results
 									Fuelfs.SetFullSpec(m_OutputFile);
+									Ft = Fuelfs.FileTitle();
 									FuelOutputFile = NULL;
 									if (m_ApplyFuelModels && m_StatParameter == ELEVATION_VALUE) {
 										Ft = Ft + _T("_fuel_parameters");
@@ -2376,10 +2648,121 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 										fprintf(FuelOutputFile, "row,col,canopy fuel weight,canopy bulk density,canopy base height,canopy height,center x,center y");
 
 										if (m_UseGlobalIdentifier) {
-											fprintf(OutputFile, ",Identifier\n");
+											fprintf(FuelOutputFile, ",Identifier\n");
 										}
 										else {
-											fprintf(OutputFile, "\n");
+											fprintf(FuelOutputFile, "\n");
+										}
+									}
+
+									// set up file for strata results
+									Stratafs.SetFullSpec(m_OutputFile);
+									Ft = Stratafs.FileTitle();
+									StrataOutputFile = NULL;
+									if ((m_DoHeightStrata || m_DoHeightStrataIntensity) && m_StatParameter == INTENSITY_VALUE) {
+										if (m_UseFirstReturnsForAllMetrics)
+											Ft = Ft + _T("_first_returns");
+										else
+											Ft = Ft + _T("_all_returns");
+
+										Ft = Ft + _T("_strata_stats");
+										Stratafs.SetTitle(Ft);
+										Stratafs.SetExt(".csv");
+
+										StrataOutputFile = fopen(Stratafs.GetFullSpec(), "wt");
+										fprintf(StrataOutputFile, "row,col");
+
+										if (m_DoHeightStrata) {
+											// print column labels...don't use last strata as it was "added" to provide upper bound
+											// first strata
+											fprintf(StrataOutputFile, ",Elev strata (below %.2lf) total return count,Elev strata (below %.2lf) min,Elev strata (below %.2lf) max,Elev strata (below %.2lf) mean,Elev strata (below %.2lf) mode,Elev strata (below %.2lf) stddev,Elev strata (below %.2lf) CV,Elev strata (below %.2lf) skewness,Elev strata (below %.2lf) kurtosis,Elev strata (below %.2lf) median", 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0], 
+													m_HeightStrata[0]);
+
+											for (k = 1; k < m_HeightStrataCount - 1; k ++) {
+												fprintf(StrataOutputFile, ",Elev strata (%.2lf to %.2lf) total return count,Elev strata (%.2lf to %.2lf) min,Elev strata (%.2lf to %.2lf) max,Elev strata (%.2lf to %.2lf) mean,Elev strata (%.2lf to %.2lf) mode,Elev strata (%.2lf to %.2lf) stddev,Elev strata (%.2lf to %.2lf) CV,Elev strata (%.2lf to %.2lf) skewness,Elev strata (%.2lf to %.2lf) kurtosis,Elev strata (%.2lf to %.2lf) median", 
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k],
+														m_HeightStrata[k - 1], m_HeightStrata[k], 
+														m_HeightStrata[k - 1], m_HeightStrata[k]);
+											}
+
+											// last strata
+											fprintf(StrataOutputFile, ",Elev strata (above %.2lf) total return count,Elev strata (above %.2lf) min,Elev strata (above %.2lf) max,Elev strata (above %.2lf) mean,Elev strata (above %.2lf) mode,Elev strata (above %.2lf) stddev,Elev strata (above %.2lf) CV,Elev strata (above %.2lf) skewness,Elev strata (above %.2lf) kurtosis,Elev strata (above %.2lf) median", 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2], 
+												m_HeightStrata[m_HeightStrataCount - 2]);
+										}
+
+										if (m_DoHeightStrataIntensity) {
+											// print column labels...don't use last strata as it was "added" to provide upper bound
+											// first strata
+											fprintf(StrataOutputFile, ",Int strata (below %.2lf) total return count,Int strata (below %.2lf) min,Int strata (below %.2lf) max,Int strata (below %.2lf) mean,Int strata (below %.2lf) mode,Int strata (below %.2lf) stddev,Int strata (below %.2lf) CV,Int strata (below %.2lf) skewness,Int strata (below %.2lf) kurtosis,Int strata (below %.2lf) median", 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0], 
+													m_HeightStrataIntensity[0]);
+
+											for (k = 1; k < m_HeightStrataIntensityCount - 1; k ++) {
+												fprintf(StrataOutputFile, ",Int strata (%.2lf to %.2lf) total return count,Int strata (%.2lf to %.2lf) min,Int strata (%.2lf to %.2lf) max,Int strata (%.2lf to %.2lf) mean,Int strata (%.2lf to %.2lf) mode,Int strata (%.2lf to %.2lf) stddev,Int strata (%.2lf to %.2lf) CV,Int strata (%.2lf to %.2lf) skewness,Int strata (%.2lf to %.2lf) kurtosis,Int strata (%.2lf to %.2lf) median", 
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k], 
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k]);
+											}
+
+											// last strata
+											fprintf(StrataOutputFile, ",Int strata (above %.2lf) total return count,Int strata (above %.2lf) min,Int strata (above %.2lf) max,Int strata (above %.2lf) mean,Int strata (above %.2lf) mode,Int strata (above %.2lf) stddev,Int strata (above %.2lf) CV,Int strata (above %.2lf) skewness,Int strata (above %.2lf) kurtosis,Int strata (above %.2lf) median", 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2]);
+										}
+
+										if (m_UseGlobalIdentifier) {
+											fprintf(StrataOutputFile, ",Identifier\n");
+										}
+										else {
+											fprintf(StrataOutputFile, "\n");
 										}
 									}
 
@@ -2422,7 +2805,44 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 										MaxColOutput = cols - 1;
 									}
 
+									// run through the points and find the maximum number of points in a cell...
+									// needed to create a list for values for MAD calculations
+									if (MedianDiffValueList == NULL && ModeDiffValueList == NULL) {
+										MaxCellCount = 0;
+										y = yMin + (double) (rows - 1) * m_CellSize;
+										for (j = rows - 1; j >= 0 ; j --) {
+											x = xMin;
+											for (i = 0; i < cols; i ++) {
+												CurrentCellNumber = ((rows - 1) - j) * cols + i;
+												if (CurrentPointNumber < PointCount) {
+													// count points
+													CellCount = 0;
+													while (Points[CurrentPointNumber].CellNumber == CurrentCellNumber) {
+														CellCount ++;
+														CurrentPointNumber ++;
+
+														if (CurrentPointNumber == PointCount)
+															break;
+													}
+													MaxCellCount = max(MaxCellCount, CellCount);
+												}
+											}
+										}
+
+										// allocate memory for lists used for MAD calculations
+										MedianDiffValueList = new float[MaxCellCount];
+										ModeDiffValueList = new float[MaxCellCount];
+
+										if (!MedianDiffValueList) {
+											LTKCL_PrintStatus("Insufficient memory to compute median absolute difference from the median");
+										}
+										if (!ModeDiffValueList) {
+											LTKCL_PrintStatus("Insufficient memory to compute median absolute difference from the mode");
+										}
+									}
+
 									// step through cells and compute metric for each cell with LIDAR points
+									CurrentPointNumber = 0;
 									y = yMin + (double) (rows - 1) * m_CellSize;
 									for (j = rows - 1; j >= 0 ; j --) {
 										x = xMin;
@@ -2447,6 +2867,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridSkewness = -9999.0;
 												GridKurtosis = -9999.0;
 												GridAAD = -9999.0;
+												GridMadMedian = -9999.0;
+												GridMadMode = -9999.0;
 												GridIQ = -9999.0;
 												GridMin = -9999.0;
 												GridMax = -9999.0;
@@ -2471,7 +2893,12 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												AllReturnsAboveMean = -9999;
 												AllReturnsAboveMode = -9999;
 												AllReturnsTotalMeanMode = -9999;
+												CanopyReliefRatio = -9999.0;
 												GridL1 = GridL2 = GridL3 = GridL4 = -9999.0;
+												KDE_ModeCount = -9999;
+												KDE_MaxMode = -9999.0;
+												KDE_MinMode = -9999.0;
+												KDE_ModeRange = -9999.0;
 												
 												// set percentiles
 												for (k = 0; k <= 20; k ++) {
@@ -2508,7 +2935,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 												if (OutputFile && !CellInBuffer) {
 													if (m_StatParameter == ELEVATION_VALUE) {
-														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i",
+														//                   R  C  X     Y     #  min   max   mean  mode  stdv  var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L2/L1 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99  #1 #2 #3 #4 #5 #6 #7 #8 #9 #o %1    %a    %1af  #1 #a %     %     %     %     %     %     #  #  #  #  #  #  mmed  mmod  ccr
+														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf",
 															j - CellOffsetRows,
 															i - CellOffsetCols,
 															x,
@@ -2532,9 +2960,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															((GridL2 != -9999.0) ? (GridL2 / GridL1) : -9999.0),
 															((GridL3 != -9999.0) ? (GridL3 / GridL2) : -9999.0),
 															((GridL4 != -9999.0) ? (GridL4 / GridL2) : -9999.0),
-//															GridL2 / GridL1,
-//															GridL3 / GridL2,
-//															GridL4 / GridL2,
 															Percentile[0],
 															Percentile[1],
 															Percentile[2],
@@ -2576,7 +3001,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															AllReturnsAboveMean,
 															AllReturnsAboveMode,
 															FirstReturnsTotal,
-															AllReturnsTotal);
+															AllReturnsTotal,
+															GridMadMedian,
+															GridMadMode,
+															CanopyReliefRatio);
+
+														if (m_DoKDEStats)
+															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
 															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
@@ -2586,6 +3017,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														}
 													}
 													else {
+														//                   R  C  X     Y     #  min   max   ave   mode  stdv  var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L1/L2 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99
 														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f",
 															j - CellOffsetRows,
 															i - CellOffsetCols,
@@ -2646,7 +3078,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												}
 					
 												if (m_ApplyFuelModels && !CellInBuffer && m_StatParameter == ELEVATION_VALUE) {
-													fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf\n",
+													fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf",
 														j - CellOffsetRows,
 														i - CellOffsetCols,
 														-9999.0,
@@ -2656,6 +3088,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														x,
 														y);
 
+													if (m_UseGlobalIdentifier) {
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+													}
+													else {
+														fprintf(FuelOutputFile, "\n");
+													}
+
 													if (m_AddBufferDistance || m_AddBufferCells) {
 														MinRowOutput = min(MinRowOutput, j);
 														MaxRowOutput = max(MaxRowOutput, j);
@@ -2663,6 +3102,32 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														MaxColOutput = max(MaxColOutput, i);
 													}
 												}
+
+												if ((m_DoHeightStrata || m_DoHeightStrataIntensity) && !CellInBuffer && m_StatParameter == INTENSITY_VALUE) {
+													fprintf(StrataOutputFile, "%i,%i",
+														j - CellOffsetRows,
+														i - CellOffsetCols);
+
+													if (m_DoHeightStrata) {
+														for (k = 0; k < m_HeightStrataCount; k ++) {
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+														}
+													}
+													
+													if (m_DoHeightStrataIntensity) {
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+														}
+													}
+
+													if (m_UseGlobalIdentifier) {
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+													}
+													else {
+														fprintf(StrataOutputFile, "\n");
+													}
+												}
+
 												x += m_CellSize;
 												continue;
 											}
@@ -2678,6 +3143,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridSkewness = -9999.0;
 												GridKurtosis = -9999.0;
 												GridAAD = -9999.0;
+												GridMadMedian = -9999.0;
+												GridMadMode = -9999.0;
 												GridIQ = -9999.0;
 												GridMin = -9999.0;
 												GridMax = -9999.0;
@@ -2702,7 +3169,12 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												AllReturnsAboveMean = -9999;
 												AllReturnsAboveMode = -9999;
 												AllReturnsTotalMeanMode = -9999;
+												CanopyReliefRatio = -9999.0;
 												GridL1 = GridL2 = GridL3 = GridL4 = -9999.0;
+												KDE_ModeCount = -9999;
+												KDE_MaxMode = -9999.0;
+												KDE_MinMode = -9999.0;
+												KDE_ModeRange = -9999.0;
 												
 												// set percentiles
 												for (k = 0; k <= 20; k ++) {
@@ -2739,8 +3211,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 												if (OutputFile && !CellInBuffer) {
 													if (m_StatParameter == ELEVATION_VALUE) {
-//														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
-														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i",
+														//                   R  C  X     Y     #  min   max   mean  mode  stddv var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L2/L1 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99  #1 #2 #3 #4 #5 #6 #7 #8 #9 #o
+														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf",
 															j - CellOffsetRows,
 															i - CellOffsetCols,
 															x,
@@ -2764,9 +3236,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															((GridL2 != -9999.0) ? (GridL2 / GridL1) : -9999.0),
 															((GridL3 != -9999.0) ? (GridL3 / GridL2) : -9999.0),
 															((GridL4 != -9999.0) ? (GridL4 / GridL2) : -9999.0),
-//															GridL2 / GridL1,
-//															GridL3 / GridL2,
-//															GridL4 / GridL2,
 															Percentile[0],
 															Percentile[1],
 															Percentile[2],
@@ -2808,7 +3277,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															AllReturnsAboveMean,
 															AllReturnsAboveMode,
 															FirstReturnsTotal,
-															AllReturnsTotal);
+															AllReturnsTotal,
+															GridMadMedian,
+															GridMadMode,
+															CanopyReliefRatio);
+
+														if (m_DoKDEStats)
+															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
 															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
@@ -2818,8 +3293,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														}
 													}
 													else {
-//														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
-														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4lf,%.4lf,%.4lf,%.4lf",
+														//                   R  C  X     Y     #  min   max   ave   mode  stdv  var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L1/L2 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99
+														fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f",
 															j - CellOffsetRows,
 															i - CellOffsetCols,
 															x,
@@ -2843,9 +3318,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															((GridL2 != -9999.0) ? (GridL2 / GridL1) : -9999.0),
 															((GridL3 != -9999.0) ? (GridL3 / GridL2) : -9999.0),
 															((GridL4 != -9999.0) ? (GridL4 / GridL2) : -9999.0),
-//															GridL2 / GridL1,
-//															GridL3 / GridL2,
-//															GridL4 / GridL2,
 															Percentile[0],
 															Percentile[1],
 															Percentile[2],
@@ -2879,7 +3351,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												}
 					
 												if (m_ApplyFuelModels && !CellInBuffer && m_StatParameter == ELEVATION_VALUE) {
-													fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf\n",
+													fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf",
 														j - CellOffsetRows,
 														i - CellOffsetCols,
 														-9999.0,
@@ -2889,6 +3361,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														x,
 														y);
 
+													if (m_UseGlobalIdentifier) {
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+													}
+													else {
+														fprintf(FuelOutputFile, "\n");
+													}
+
 													if (m_AddBufferDistance || m_AddBufferCells) {
 														MinRowOutput = min(MinRowOutput, j);
 														MaxRowOutput = max(MaxRowOutput, j);
@@ -2896,6 +3375,32 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														MaxColOutput = max(MaxColOutput, i);
 													}
 												}
+												
+												if ((m_DoHeightStrata || m_DoHeightStrataIntensity) && !CellInBuffer && m_StatParameter == INTENSITY_VALUE) {
+													fprintf(StrataOutputFile, "%i,%i",
+														j - CellOffsetRows,
+														i - CellOffsetCols);
+
+													if (m_DoHeightStrata) {
+														for (k = 0; k < m_HeightStrataCount; k ++) {
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+														}
+													}
+													
+													if (m_DoHeightStrataIntensity) {
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+														}
+													}
+
+													if (m_UseGlobalIdentifier) {
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+													}
+													else {
+														fprintf(StrataOutputFile, "\n");
+													}
+												}
+
 												x += m_CellSize;
 												continue;
 											}
@@ -2917,6 +3422,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											MinPtIndex = -1;
 											IntensityMinPtIndex = -1;
 											IntensityCellCount = 0;
+											KDE_ModeCount = 0;
+											KDE_MaxMode = 0.0;
+											KDE_MinMode = 0.0;
+											KDE_ModeRange = 0.0;
 
 											// initialize return counts
 											for (k = 0; k < 10; k ++) {
@@ -2944,10 +3453,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													IntensityCellCount ++;
 												}
 
+												// count all returns
+												AllReturnsTotal ++;
+
 												// do counting for cover values
 												if (m_StatParameter == ELEVATION_VALUE) {
-													// count all returns
-													AllReturnsTotal ++;
 													if (Points[CurrentPointNumber].Elevation > m_HeightBreak)
 														AllReturnsAboveThreshold ++;
 
@@ -3028,14 +3538,18 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridCV = GridStdDev / GridMean;
 
 												// get min/max
-// 1/27/2009											GridMin = Points[FirstCellPoint].Value;
-// 1/27/2009											GridMax = Points[FirstCellPoint + (CellCount - 1)].Value;
 												if (m_StatParameter == ELEVATION_VALUE) {
 													// when doing elevation metrics, we know that the points are sorted by elevation so the 1st is
-													// the minimum and the last is the maximum...MinPtIndex is the first poiny above the htmin
+													// the minimum and the last is the maximum...MinPtIndex is the first point above the htmin
 													// and CellCount is the number of points above the htmin
 													GridMin = Points[MinPtIndex].Value;
 													GridMax = Points[MinPtIndex + (CellCount - 1)].Value;
+
+													// compute canopy relief ratio
+													if (GridMax != GridMin)
+														CanopyReliefRatio = (GridMean - GridMin) / (GridMax - GridMin);
+													else
+														CanopyReliefRatio = 0.0;
 												}
 
 												// compute percentile related metrics...do 5, 10, 20, 25, ... classes
@@ -3052,11 +3566,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														Fraction = ((float) (CellCount - 1) * ((float) k * 0.05)) - WholePart;
 													
 														if (Fraction == 0.0) {
-		//													Percentile[k] = Points[FirstCellPoint + WholePart].Value;
 															Percentile[k] = Points[MinPtIndex + WholePart].Value;
 														}
 														else {
-		//													Percentile[k] = Points[FirstCellPoint + WholePart].Value + Fraction * (Points[FirstCellPoint + WholePart + 1].Value - Points[FirstCellPoint + WholePart].Value);
 															Percentile[k] = Points[MinPtIndex + WholePart].Value + Fraction * (Points[MinPtIndex + WholePart + 1].Value - Points[MinPtIndex + WholePart].Value);
 														}
 													}
@@ -3128,7 +3640,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridSkewness = 0.0;
 												GridKurtosis = 0.0;
 												GridAAD = 0.0;
-	//											for (l = FirstCellPoint; l < FirstCellPoint + CellCount; l ++) {
 												if (m_StatParameter == ELEVATION_VALUE) {
 													for (l = MinPtIndex; l < MinPtIndex + CellCount; l ++) {
 														GridSkewness += (Points[l].Value - GridMean) * (Points[l].Value - GridMean) * (Points[l].Value - GridMean);
@@ -3214,7 +3725,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													Bins[l] = 0;
 
 												// count values using bins
-	//											for (l = FirstCellPoint; l < FirstCellPoint + CellCount; l ++) {
 												if (m_StatParameter == ELEVATION_VALUE) {
 													for (l = MinPtIndex; l < MinPtIndex + CellCount; l ++) {
 														TheBin = (int) (((Points[l].Value - GridMin) / (GridMax - GridMin)) * (double) (NUMBEROFBINS - 1));
@@ -3247,8 +3757,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												FirstReturnsAboveMean = 0;
 												FirstReturnsAboveMode = 0;
 												FirstReturnsTotalMeanMode = 0;
-												for (l = MinPtIndex; l < MinPtIndex + CellCount; l ++) {
-													if (m_StatParameter == ELEVATION_VALUE) {
+
+
+// @@@@@@@@@@@@@@@@@@@@@@@ needs testing and correct note in changes.txt
+
+												if (m_StatParameter == ELEVATION_VALUE) {
+//@@@@@@@@ using only points above min ht				for (l = MinPtIndex; l < MinPtIndex + CellCount; l ++) {
+													for (l = FirstCellPoint; l < FirstCellPoint + AllReturnsTotal; l ++) {
 														// count all returns
 														AllReturnsTotalMeanMode ++;
 														if (Points[l].Elevation > GridMean)
@@ -3265,24 +3780,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 																FirstReturnsAboveMode ++;
 														}
 													}
-/* removed 10/20/2009
-													if (m_UseFirstReturnsForDensity && Points[l].ReturnNumber == 1) {
-														FirstReturnsTotalMeanMode ++;
-
-														if (Points[l].Elevation > GridMean)
-															FirstReturnsAboveMean ++;
-														if (Points[l].Elevation > GridMode)
-															FirstReturnsAboveMode ++;
-													}
-													else if (!m_UseFirstReturnsForDensity) {
-														FirstReturnsTotalMeanMode ++;
-
-														if (Points[l].Elevation > GridMean)
-															FirstReturnsAboveMean ++;
-														if (Points[l].Elevation > GridMode)
-															FirstReturnsAboveMode ++;
-													}
-*/
 												}
 
 												// compute density above mean and mode
@@ -3327,6 +3824,325 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													}
 												}
 
+// ********************************************** 1/24/2011
+												// compute KDE related metrics
+												if (m_StatParameter == ELEVATION_VALUE) {
+													int q;
+													int FullPointCount = 0;
+													if (m_DoKDEStats) {
+														// fill ElevDiffValueList with elevation values...uses only points above the min ht
+														for (q = MinPtIndex; q < MinPtIndex + CellCount; q ++) {
+//														for (q = FirstCellPoint; q < FirstCellPoint + AllReturnsTotal; q ++) {
+															// compute difference from median and mode values
+															MedianDiffValueList[FullPointCount] = Points[q].Elevation;
+
+															FullPointCount ++;
+														}
+
+														BW = 0.9 * (min(GridStdDev, GridIQ) / 1.34) * pow((double) FullPointCount, -0.2);
+														GaussianKDE(MedianDiffValueList, FullPointCount, BW * m_KDEBandwidthMultiplier, m_KDEWindowSize, KDE_ModeCount, KDE_MinMode, KDE_MaxMode);
+														KDE_ModeRange = KDE_MaxMode - KDE_MinMode;
+													}
+
+													// new code for MAD statistics...uses only points above the min ht
+													FullPointCount = 0;
+
+													for (q = MinPtIndex; q < MinPtIndex + CellCount; q ++) {
+														// compute difference from median and mode values
+														MedianDiffValueList[FullPointCount] = (float) fabs((double) Points[q].Elevation - Percentile[10]);
+														ModeDiffValueList[FullPointCount] = (float) fabs((double) Points[q].Elevation - GridMode);
+
+														FullPointCount ++;
+													}
+
+													// sort differences
+													qsort(MedianDiffValueList, (size_t) FullPointCount, sizeof(float), comparefloat);
+													qsort(ModeDiffValueList, (size_t) FullPointCount, sizeof(float), comparefloat);
+
+													// compute median values
+													// source http://www.resacorp.com/quartiles.htm...method 5
+													WholePart = (int) ((float) (FullPointCount - 1) * 0.5);
+													Fraction = ((float) (FullPointCount - 1) * 0.5) - (float) WholePart;
+												
+													if (Fraction == 0.0) {
+														GridMadMedian = MedianDiffValueList[WholePart];
+														GridMadMode = ModeDiffValueList[WholePart];
+													}
+													else {
+														GridMadMedian = MedianDiffValueList[WholePart] + Fraction * (MedianDiffValueList[WholePart + 1] - MedianDiffValueList[WholePart]);
+														GridMadMode = ModeDiffValueList[WholePart] + Fraction * (ModeDiffValueList[WholePart + 1] - ModeDiffValueList[WholePart]);
+													}
+												}
+												else {
+													// do strata when doing intensity metrics
+													// this is when we have both the return elevation and its intensity
+													// when doing elevation metrics, we have only elevation
+													if (m_DoHeightStrata || m_DoHeightStrataIntensity) {
+														// initialize strata counts and std dev (will be used to accumulate values)
+														for (k = 0; k < MAX_NUMBER_OF_STRATA; k ++) {
+															ElevStrataCount[k] = 0;
+															ElevStrataVariance[k] = 0.0;
+															ElevStrataMean[k] = 0.0;
+															ElevStrataMin[k] = DBL_MAX;
+															ElevStrataMax[k] = DBL_MIN;
+															ElevStrataMedian[k] = 0.0;
+															ElevStrataMode[k] = 0.0;
+															ElevStrataSkewness[k] = 0.0;
+															ElevStrataKurtosis[k] = 0.0;
+															ElevStrataM2[k] = 0.0;
+															ElevStrataM3[k] = 0.0;
+															ElevStrataM4[k] = 0.0;
+															for (m = 0; m < 10; m ++)
+																ElevStrataCountReturn[k][m];
+
+															IntStrataCount[k] = 0;
+															IntStrataVariance[k] = 0.0;
+															IntStrataMean[k] = 0.0;
+															IntStrataMin[k] = DBL_MAX;
+															IntStrataMax[k] = DBL_MIN;
+															IntStrataMedian[k] = 0.0;
+															IntStrataMode[k] = 0.0;
+															IntStrataSkewness[k] = 0.0;
+															IntStrataKurtosis[k] = 0.0;
+															IntStrataM2[k] = 0.0;
+															IntStrataM3[k] = 0.0;
+															IntStrataM4[k] = 0.0;
+															for (m = 0; m < 10; m ++)
+																IntStrataCountReturn[k][m];
+														}
+
+														// resort cell data by elevation to do strata...for INTENSITY_VALUE data are 
+														// sorted by the intensity stored in the value field
+														qsort(&Points[FirstCellPoint], AllReturnsTotal, sizeof(PointRecord), compareCellElev);
+
+														if (m_DoHeightStrata) {
+															for (l = FirstCellPoint; l < FirstCellPoint + AllReturnsTotal; l ++) {
+																// figure out which strata the point is in, accumulate counts and compute mean and variance
+																// algorithm for 1-pass calculation of mean and std dev from: http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+																// modified algorithm to use (n - 1) instead of n (in final calculation outside loop) for kurtosis and skewness to match
+																// the values computed in "old" logic (non-strata)
+																for (k = 0; k < m_HeightStrataCount; k ++) {
+																	if (Points[l].Elevation < m_HeightStrata[k]) {
+																		// ElevStrataCount[] has total return count
+																		n1 = ElevStrataCount[k];
+																		ElevStrataCount[k] ++;
+
+																		// compute mean, variance, skewness, and kurtosis
+																		delta = (double) Points[l].Elevation - ElevStrataMean[k];
+																		delta_n = delta / (double) ElevStrataCount[k];
+																		delta_n2 = delta_n * delta_n;
+
+																		term1 = delta * delta_n * (double) n1;
+																		ElevStrataMean[k] += delta_n;
+																		ElevStrataM4[k] += term1 * delta_n2 * ((double) ElevStrataCount[k] * (double) ElevStrataCount[k] - 3.0 * (double) ElevStrataCount[k] + 3.0) + 6.0 * delta_n2 * ElevStrataM2[k] - 4.0 * delta_n * ElevStrataM3[k];
+																		ElevStrataM3[k] += term1 * delta_n * ((double) ElevStrataCount[k] - 2.0) - 3.0 * delta_n * ElevStrataM2[k];
+																		ElevStrataM2[k] += term1;
+
+																		// bins 0-8 have counts for returns 1-9
+																		// bin 9 has count of "other" returns
+																		if (Points[l].ReturnNumber < 10 && Points[l].ReturnNumber > 0) {
+																			ElevStrataCountReturn[k][Points[l].ReturnNumber - 1] ++;
+																		}
+																		else {
+																			ElevStrataCountReturn[k][9] ++;
+																		}
+
+																		// do min/max
+																		ElevStrataMin[k] = min(ElevStrataMin[k], Points[l].Elevation);
+																		ElevStrataMax[k] = max(ElevStrataMax[k], Points[l].Elevation);
+
+																		break;
+																	}
+																}
+															}
+
+															// compute the final variance
+															for (k = 0; k < m_HeightStrataCount; k ++) {
+																if (ElevStrataCount[k]) {
+																	ElevStrataVariance[k] = ElevStrataM2[k] / (double) (ElevStrataCount[k] - 1);
+
+																	// kurtosis and skewness use (n - 1) to match values computed for entire point cloud
+//																	ElevStrataKurtosis[k] = ((double) ElevStrataCount[k] * ElevStrataM4[k]) / (ElevStrataM2[k] * ElevStrataM2[k]) - 3.0;
+																	ElevStrataKurtosis[k] = (((double) ElevStrataCount[k] - 1.0) * ElevStrataM4[k]) / (ElevStrataM2[k] * ElevStrataM2[k]);
+																	ElevStrataSkewness[k] = (sqrt((double) ElevStrataCount[k] - 1.0) * ElevStrataM3[k]) / sqrt(ElevStrataM2[k] * ElevStrataM2[k] * ElevStrataM2[k]);
+																}
+															}
+
+															// compute median and mode
+															TempPointCount = FirstCellPoint;
+															for (k = 0; k < m_HeightStrataCount; k ++) {
+																if (ElevStrataCount[k]) {
+																	WholePart = (int) ((float) (ElevStrataCount[k] - 1) * 0.5);
+																	Fraction = ((float) (ElevStrataCount[k] - 1) * 0.5) - WholePart;
+																
+																	WholePart = TempPointCount + WholePart;
+
+																	if (Fraction == 0.0) {
+																		ElevStrataMedian[k] = Points[WholePart].Elevation;
+																	}
+																	else {
+																		ElevStrataMedian[k] = Points[WholePart].Elevation + Fraction * (Points[WholePart + 1].Elevation - Points[WholePart].Elevation);
+																	}
+																}
+																else {
+																	ElevStrataMedian[k] = -9999.0;
+																}
+
+																TempPointCount += ElevStrataCount[k];
+															}
+
+															// figure out the mode using 64 bins for data
+															// count values using bins
+															TempPointCount = FirstCellPoint;
+															for (k = 0; k < m_HeightStrataCount; k ++) {
+																if (ElevStrataCount[k]) {
+																	for (l = 0; l < NUMBEROFBINS; l ++)
+																		Bins[l] = 0;
+
+																	for (l = TempPointCount; l < TempPointCount + ElevStrataCount[k]; l ++) {
+																		TheBin = (int) ((((double) Points[l].Elevation - ElevStrataMin[k]) / (ElevStrataMax[k] - ElevStrataMin[k])) * (double) (NUMBEROFBINS - 1));
+																		Bins[TheBin] ++;
+																	}
+
+																	// find most frequent value
+																	MaxCount = -1;
+																	for (l = 0; l < NUMBEROFBINS; l ++) {
+																		if (Bins[l] > MaxCount) {
+																			MaxCount = Bins[l];
+																			TheBin = l;
+																		}
+																	}
+
+																	// compute mode by un-scaling the bin number
+																	ElevStrataMode[k] = ElevStrataMin[k] + ((double) TheBin / (double) (NUMBEROFBINS - 1)) * (ElevStrataMax[k] - ElevStrataMin[k]);
+																}
+																else {
+																	ElevStrataMode[k] = -9999.0;
+																}
+
+																TempPointCount += ElevStrataCount[k];
+															}
+														}
+
+														if (m_DoHeightStrataIntensity) {
+															for (l = FirstCellPoint; l < FirstCellPoint + AllReturnsTotal; l ++) {
+																// figure out which strata the point is in, accumulate counts and compute mean and variance
+																// algorithm for 1-pass calculation of mean and std dev from: http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+																for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																	if (Points[l].Elevation < m_HeightStrataIntensity[k]) {
+																		// ElevStrataCount[] has total return count
+																		n1 = IntStrataCount[k];
+																		IntStrataCount[k] ++;
+
+																		// compute mean, variance, skewness, and kurtosis
+																		delta = (double) Points[l].Value - IntStrataMean[k];
+																		delta_n = delta / (double) IntStrataCount[k];
+																		delta_n2 = delta_n * delta_n;
+
+																		term1 = delta * delta_n * (double) n1;
+																		IntStrataMean[k] += delta_n;
+																		IntStrataM4[k] += term1 * delta_n2 * ((double) IntStrataCount[k] * (double) IntStrataCount[k] - 3.0 * (double) IntStrataCount[k] + 3.0) + 6.0 * delta_n2 * IntStrataM2[k] - 4.0 * delta_n * IntStrataM3[k];
+																		IntStrataM3[k] += term1 * delta_n * ((double) IntStrataCount[k] - 2.0) - 3.0 * delta_n * IntStrataM2[k];
+																		IntStrataM2[k] += term1;
+
+																		// bins 0-8 have counts for returns 1-9
+																		// bin 9 has count of "other" returns
+																		if (Points[l].ReturnNumber < 10 && Points[l].ReturnNumber > 0) {
+																			IntStrataCountReturn[k][Points[l].ReturnNumber - 1] ++;
+																		}
+																		else {
+																			IntStrataCountReturn[k][9] ++;
+																		}
+
+																		// do min/max
+																		IntStrataMin[k] = min(IntStrataMin[k], Points[l].Value);
+																		IntStrataMax[k] = max(IntStrataMax[k], Points[l].Value);
+
+																		break;
+																	}
+																}
+															}
+
+															// compute the final values
+															for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																if (IntStrataCount[k]) {
+																	IntStrataVariance[k] = IntStrataM2[k] / (double) (IntStrataCount[k] - 1);
+
+																	// kurtosis and skewness use (n - 1) to match values computed for entire point cloud
+//																	IntStrataKurtosis[k] = ((double) IntStrataCount[k] * IntStrataM4[k]) / (IntStrataM2[k] * IntStrataM2[k]) - 3.0;
+																	IntStrataKurtosis[k] = (((double) IntStrataCount[k] - 1.0) * IntStrataM4[k]) / (IntStrataM2[k] * IntStrataM2[k]);
+																	IntStrataSkewness[k] = (sqrt((double) IntStrataCount[k] - 1.0) * IntStrataM3[k]) / sqrt(IntStrataM2[k] * IntStrataM2[k] * IntStrataM2[k]);
+																}
+															}
+
+															// resort the list for the current cell using intensity values within each height strata
+															TempPointCount = FirstCellPoint;
+															for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																if (IntStrataCount[k]) {
+																	qsort(&Points[TempPointCount], (size_t) IntStrataCount[k], sizeof(PointRecord), comparePRint);
+																}
+																TempPointCount += IntStrataCount[k];
+															}
+														
+															// compute median and mode
+															TempPointCount = FirstCellPoint;
+															for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																if (IntStrataCount[k]) {
+																	WholePart = (int) ((float) (IntStrataCount[k] - 1) * 0.5);
+																	Fraction = ((float) (IntStrataCount[k] - 1) * 0.5) - WholePart;
+																
+																	WholePart = TempPointCount + WholePart;
+
+																	if (Fraction == 0.0) {
+																		IntStrataMedian[k] = Points[WholePart].Value;
+																	}
+																	else {
+																		IntStrataMedian[k] = Points[WholePart].Value + Fraction * (Points[WholePart + 1].Value - Points[WholePart].Value);
+																	}
+																}
+																else {
+																	IntStrataMedian[k] = -9999.0;
+																}
+
+																TempPointCount += IntStrataCount[k];
+															}
+
+															// figure out the mode using 64 bins for data
+															// count values using bins
+															TempPointCount = FirstCellPoint;
+															for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																if (IntStrataCount[k]) {
+																	for (l = 0; l < NUMBEROFBINS; l ++)
+																		Bins[l] = 0;
+
+																	for (l = TempPointCount; l < TempPointCount + IntStrataCount[k]; l ++) {
+																		TheBin = (int) ((((double) Points[l].Value - IntStrataMin[k]) / (IntStrataMax[k] - IntStrataMin[k])) * (double) (NUMBEROFBINS - 1));
+																		Bins[TheBin] ++;
+																	}
+
+																	// find most frequent value
+																	MaxCount = -1;
+																	for (l = 0; l < NUMBEROFBINS; l ++) {
+																		if (Bins[l] > MaxCount) {
+																			MaxCount = Bins[l];
+																			TheBin = l;
+																		}
+																	}
+
+																	// compute mode by un-scaling the bin number
+																	IntStrataMode[k] = IntStrataMin[k] + ((double) TheBin / (double) (NUMBEROFBINS - 1)) * (IntStrataMax[k] - IntStrataMin[k]);
+																}
+																else {
+																	IntStrataMode[k] = -9999.0;
+																}
+
+																TempPointCount += IntStrataCount[k];
+															}
+														}
+													}
+												}
+
+//***********************************************
 #ifdef INCLUDE_OUTLIER_IMAGE_CODE
 												// do outlier analysis
 												if (m_CreateOutlierImage) {
@@ -3344,6 +4160,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridSkewness = -9999.0;
 												GridKurtosis = -9999.0;
 												GridAAD = -9999.0;
+												GridMadMedian = -9999.0;
+												GridMadMode = -9999.0;
 												GridIQ = -9999.0;
 												GridMin = -9999.0;
 												GridMax = -9999.0;
@@ -3359,6 +4177,12 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												CanopyBulkDensity = -9999.0;
 												CanopyBaseHeight = -9999.0;
 												CanopyHeight = -9999.0;
+												CanopyReliefRatio = -9999.0;
+
+												KDE_ModeCount = -9999;
+												KDE_MaxMode = -9999.0;
+												KDE_MinMode = -9999.0;
+												KDE_ModeRange = -9999.0;
 												
 												// set percentiles
 												for (k = 0; k <= 20; k ++) {
@@ -3514,8 +4338,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 											if (OutputFile && !CellInBuffer) {
 												if (m_StatParameter == ELEVATION_VALUE) {
-//													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
-													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i",
+													//                   R  C  X     Y     #  min   max   mean  mode  stdv  var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L2/L1 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99  #1 #2 #3 #4 #5 #6 #7 #8 #9 #o %1    %a    %1af  #1 #a %     %     %     %     %     %     #  #  #  #  #  #  mmed  mmod  ccr
+													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf,%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%i,%i,%i,%i,%i,%i,%.4lf,%.4lf,%.4lf",
 														j - CellOffsetRows,
 														i - CellOffsetCols,
 														x,
@@ -3539,9 +4363,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														((GridL2 != -9999.0) ? (GridL2 / GridL1) : -9999.0),
 														((GridL3 != -9999.0) ? (GridL3 / GridL2) : -9999.0),
 														((GridL4 != -9999.0) ? (GridL4 / GridL2) : -9999.0),
-//														GridL2 / GridL1,
-//														GridL3 / GridL2,
-//														GridL4 / GridL2,
 														Percentile[0],
 														Percentile[1],
 														Percentile[2],
@@ -3583,7 +4404,13 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														AllReturnsAboveMean,
 														AllReturnsAboveMode,
 														FirstReturnsTotal,
-														AllReturnsTotal);
+														AllReturnsTotal,
+														GridMadMedian,
+														GridMadMode,
+														CanopyReliefRatio);
+
+													if (m_DoKDEStats)
+														fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 													if (m_UseGlobalIdentifier) {
 														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
@@ -3594,7 +4421,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												}
 												else {
 //													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
-													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4lf,%.4lf,%.4lf,%.4lf",
+													//                   R  C  X     Y     #  min   max   ave   mode  stdv  var   CV    IQ    skew  kurt  AAD   L1    L2    L3    L4    L1/L2 L3/L2 L4/L2 P01  P05  P10  P20  P25  P30  P40  P50  P60  P70  P75  P80  P90  P95  P99
+													fprintf(OutputFile, "%i,%i,%.4lf,%.4lf,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f",
 														j - CellOffsetRows,
 														i - CellOffsetCols,
 														x,
@@ -3607,7 +4435,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														GridStdDev,
 														GridVariance,
 														GridCV,
-														Percentile[15] - Percentile[5],
+														(double) (Percentile[15] - Percentile[5]),
 														GridSkewness,
 														GridKurtosis,
 														GridAAD,
@@ -3618,9 +4446,6 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														((GridL2 != -9999.0) ? (GridL2 / GridL1) : -9999.0),
 														((GridL3 != -9999.0) ? (GridL3 / GridL2) : -9999.0),
 														((GridL4 != -9999.0) ? (GridL4 / GridL2) : -9999.0),
-//														GridL2 / GridL1,
-//														GridL3 / GridL2,
-//														GridL4 / GridL2,
 														Percentile[0],
 														Percentile[1],
 														Percentile[2],
@@ -3655,7 +4480,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 											// output fuel model results
 											if (m_ApplyFuelModels && !CellInBuffer && m_StatParameter == ELEVATION_VALUE) {
-												fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf\n",
+												fprintf(FuelOutputFile, "%i,%i,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf,%.4lf",
 													j - CellOffsetRows,
 													i - CellOffsetCols,
 													CanopyFuelWeight,
@@ -3665,13 +4490,56 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													x,
 													y);
 											
-													if (m_AddBufferDistance || m_AddBufferCells) {
-														MinRowOutput = min(MinRowOutput, j);
-														MaxRowOutput = max(MaxRowOutput, j);
-														MinColOutput = min(MinColOutput, i);
-														MaxColOutput = max(MaxColOutput, i);
+												if (m_UseGlobalIdentifier) {
+													fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+												}
+												else {
+													fprintf(FuelOutputFile, "\n");
+												}
+
+												if (m_AddBufferDistance || m_AddBufferCells) {
+													MinRowOutput = min(MinRowOutput, j);
+													MaxRowOutput = max(MaxRowOutput, j);
+													MinColOutput = min(MinColOutput, i);
+													MaxColOutput = max(MaxColOutput, i);
+												}
+											}
+
+											if ((m_DoHeightStrata || m_DoHeightStrataIntensity) && !CellInBuffer && m_StatParameter == INTENSITY_VALUE) {
+												fprintf(StrataOutputFile, "%i,%i",
+													j - CellOffsetRows,
+													i - CellOffsetCols);
+
+												if (m_DoHeightStrata) {
+													for (k = 0; k < m_HeightStrataCount; k ++) {
+														if (ElevStrataCount[k] > 2)
+															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", ElevStrataCount[k], ElevStrataMin[k], ElevStrataMax[k], ElevStrataMean[k], ElevStrataMode[k], sqrt(ElevStrataVariance[k]), sqrt(ElevStrataVariance[k]) / ElevStrataMean[k], ElevStrataSkewness[k], ElevStrataKurtosis[k], ElevStrataMedian[k]);
+														else if (ElevStrataCount[k])
+															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k], ElevStrataMean[k]);
+														else 
+															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k]);
 													}
-	}
+												}
+												
+												if (m_DoHeightStrataIntensity) {
+													for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+														if (IntStrataCount[k] > 2)
+															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", IntStrataCount[k], IntStrataMin[k], IntStrataMax[k], IntStrataMean[k], IntStrataMode[k], sqrt(IntStrataVariance[k]), sqrt(IntStrataVariance[k]) / IntStrataMean[k], IntStrataSkewness[k], IntStrataKurtosis[k], IntStrataMedian[k]);
+														else if (IntStrataCount[k])
+															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k], IntStrataMean[k]);
+														else 
+															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k]);
+													}
+												}
+
+												if (m_UseGlobalIdentifier) {
+													fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+												}
+												else {
+													fprintf(StrataOutputFile, "\n");
+												}
+											}
+
 											x += m_CellSize;
 
 	// removed 7/24/2008 RJM
@@ -3752,6 +4620,42 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											fclose(f);
 
 											LTKCL_ReportProductFile(Fuelfs.GetFullSpec(), "ASCII raster grid header for fuel parameters");
+										}
+									}
+								
+									// close the strata file and write header file
+									if ((m_DoHeightStrata || m_DoHeightStrataIntensity) && m_StatParameter == INTENSITY_VALUE) {
+										fclose(StrataOutputFile);
+
+										LTKCL_ReportProductFile(Stratafs.GetFullSpec(), "Strata metrics");
+										
+										// write header file for ASCII raster...needed for georeferencing of csv file
+										Ft = Stratafs.FileTitle();
+										Ft = Ft + _T("_ascii_header");
+										Stratafs.SetTitle(Ft);
+										Stratafs.SetExt(".txt");
+
+										FILE* f = fopen(Stratafs.GetFullSpec(), "wt");
+										if (f) {
+											// write header
+											if (m_AddBufferDistance || m_AddBufferCells) {
+												fprintf(f, "ncols %i\n", (MaxColOutput - MinColOutput) + 1);
+												fprintf(f, "nrows %i\n", (MaxRowOutput - MinRowOutput) + 1);
+												fprintf(f, "xllcenter %.4lf\n", xMin + (m_CellSize * (double) MinColOutput));
+												fprintf(f, "yllcenter %.4lf\n", yMin + (m_CellSize * (double) MinRowOutput));
+											}
+											else {
+												fprintf(f, "ncols %i\n", cols);
+												fprintf(f, "nrows %i\n", rows);
+												fprintf(f, "xllcenter %.4lf\n", xMin);
+												fprintf(f, "yllcenter %.4lf\n", yMin);
+											}
+											fprintf(f, "cellsize %.4lf\n", m_CellSize);
+											fprintf(f, "nodata_value -9999\n");
+
+											fclose(f);
+
+											LTKCL_ReportProductFile(Stratafs.GetFullSpec(), "ASCII raster grid header for strata metrics");
 										}
 									}
 
@@ -4400,6 +5304,14 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									}
 									m_StatParameter ++;
 								}
+
+								// free memory for MAD lists
+								if (MedianDiffValueList) {
+									delete [] MedianDiffValueList;
+								}
+								if (ModeDiffValueList) {
+									delete [] ModeDiffValueList;
+								}
 // *************************************************
 							}
 							else {
@@ -4710,4 +5622,299 @@ double InterpolateGroundElevation(double X, double Y)
 //		}
 	}
 	return(groundelev);
+}
+
+#define STEPS	512
+#define MIN_KDE_POINTS	10
+#define MIN_KDE_RANGE	3.0
+
+void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int& ModeCount, double& MinMode, double& MaxMode)
+{
+	int i, j;
+	double MinElev, MaxElev;
+	double DataMinElev, DataMaxElev;
+	int UseSmoothedCurve = TRUE;
+	int ModeCnt;
+
+	if (SmoothWindow == 0.0)
+		UseSmoothedCurve = FALSE;
+
+	// get the min/max elevation
+	MinElev = DBL_MAX;
+	MaxElev = DBL_MIN;
+	for (i = 0; i < Pts; i ++) {
+		MinElev = min(MinElev, (double) PointData[i]);
+		MaxElev = max(MaxElev, (double) PointData[i]);
+	}
+
+	// save actual data range
+	DataMinElev = MinElev;
+	DataMaxElev = MaxElev;
+
+	// check for meaningful data
+	if (Pts < MIN_KDE_POINTS || (MaxElev - MinElev) < SmoothWindow || (MaxElev - MinElev) < MIN_KDE_RANGE) {
+		ModeCount = 0;
+		MinMode = 0.0;
+		MaxMode = 0.0;
+
+		return;
+	}
+
+	// adjust min/max
+	MinElev -= BW * 3.0;
+	MaxElev += BW * 3.0;
+
+	double X[STEPS];		// elevation/height
+	double Y[STEPS];		// density
+	double SmoothX[STEPS];		// elevation/height
+	double SmoothY[STEPS];		// density
+	char sign[STEPS];	// + or -
+	double Step = (MaxElev - MinElev) / (double) (STEPS - 1);
+	double Constant1 = 1.0 / ((double) Pts * sqrt(2.0 * 3.141592653589793 * BW * BW));
+	double Constant2 = 2.0 * BW * BW;
+	double ExpTerm;
+	double AveY;		// used for sliding window
+
+	// compute probabilites
+	double Ht = MinElev;
+	for (i = 0; i < STEPS; i ++) {
+		ExpTerm = 0.0;
+		for (j = 0; j < Pts; j ++) {
+			ExpTerm += exp(-1.0 * (Ht - (double) PointData[j]) * (Ht - (double) PointData[j]) / Constant2);
+		}
+
+		X[i] = Ht;
+		Y[i] = Constant1 * ExpTerm;
+
+		Ht += Step;
+
+//		printf("%.4lf,%.4lf\n", X[i], Y[i]);
+	}
+
+	// do a sliding window average to smooth
+	if (UseSmoothedCurve) {
+		int EndHalfWindow;
+		int CellCnt;
+		int HalfWindow = (int) (SmoothWindow / Step);
+
+		// force HalfWindow to be odd to make sure window is centered on the point being modified
+		if (HalfWindow % 2 == 0)
+			HalfWindow ++;
+
+		EndHalfWindow = 0;
+		for (i = 0; i < HalfWindow; i ++) {
+			AveY = 0.0;
+			CellCnt = 0;
+			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
+	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
+				if (j >= 0) {
+					AveY += Y[j];
+					CellCnt ++;
+				}
+			}
+			SmoothX[i] = X[i];
+			SmoothY[i] = AveY / ((double) CellCnt);
+
+			EndHalfWindow ++;
+		}
+
+		// this loop should handle only complete windows...window fits within the array bounds
+		for (i = HalfWindow; i < STEPS - HalfWindow; i ++) {
+			if (i == HalfWindow) {
+				// first time...need to get all values
+				AveY = 0.0;
+				CellCnt = 0;
+				for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
+					if (j >= 0 && j < STEPS) {
+						AveY += Y[j];
+						CellCnt ++;
+					}
+				}
+			}
+			else {
+				// after first time only need to change first and last values
+				AveY -= Y[(i - HalfWindow) - 1];		// subtract 1 since i has been advanced by 1 since "group" was formed
+				AveY += Y[(i + HalfWindow)];
+			}
+			SmoothX[i] = X[i];
+			SmoothY[i] = AveY / ((double) CellCnt);
+		}
+
+		EndHalfWindow = 0;
+		for (i = STEPS - 1; i >= STEPS - HalfWindow; i --) {
+	//	for (i = STEPS - HalfWindow; i < STEPS; i ++) {
+			AveY = 0.0;
+			CellCnt = 0;
+			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
+	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
+				if (j < STEPS) {
+					AveY += Y[j];
+					CellCnt ++;
+				}
+			}
+			SmoothX[i] = X[i];
+			SmoothY[i] = AveY / ((double) CellCnt);
+
+			EndHalfWindow ++;
+		}
+	}
+
+	// figure out the signs
+	int FirstMin = FALSE;
+	sign[0] = -1;
+	sign[STEPS - 1] = 1;
+	if (!UseSmoothedCurve) {
+		for (i = 0; i < STEPS; i ++) {
+			// make sure we don't do a mode outside the actual data range
+			if (X[i] >= DataMinElev && X[i] <= DataMaxElev) {
+				if (!FirstMin) {
+					sign[i] = -1;
+					FirstMin = TRUE;
+				}
+				else if (Y[i] > Y[i - 1])
+					sign[i] = 1;
+				else if (Y[i] < Y[i - 1])
+					sign[i] = -1;
+				else
+					sign[i] = 0;
+			}
+			else
+				sign[i] = 0;
+		}
+	}
+	else {
+		// do signs using smoothed values
+		for (i = 0; i < STEPS; i ++) {
+			// make sure we don't do a mode outside the actual data range
+			if (SmoothX[i] >= DataMinElev && SmoothX[i] <= DataMaxElev) {
+				if (!FirstMin) {
+					sign[i] = -1;
+					FirstMin = TRUE;
+				}
+				else if (SmoothY[i] > SmoothY[i - 1])
+					sign[i] = 1;
+				else if (SmoothY[i] < SmoothY[i - 1])
+					sign[i] = -1;
+				else
+					sign[i] = 0;
+			}
+			else
+				sign[i] = 0;
+		}
+	}
+
+	// get mode values
+	double Modes[64];
+	double ModeProb[64];
+	int ModeType[64];
+	ModeCnt = 0;
+	for (i = 1; i < STEPS; i ++) {
+		// detect transitions from positive slope to flat or negative slope...peaks
+		if (sign[i] != sign[i - 1] && sign[i - 1] == 1) {
+			Modes[ModeCnt] = X[i - 1];
+			ModeProb[ModeCnt] = Y[i - 1];
+			ModeType[ModeCnt] = 1;
+
+//			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, Y[i] * 100.0, X[i]);
+			ModeCnt ++;
+		}
+
+		// detect transitions from negative slope to flat or positive slope...valleys
+		if (sign[i] != sign[i - 1] && sign[i - 1] == -1) {
+			Modes[ModeCnt] = X[i - 1];
+			ModeProb[ModeCnt] = Y[i - 1];
+			ModeType[ModeCnt] = -1;
+
+			ModeCnt ++;
+		}
+
+		// check for too many modes
+		if (ModeCnt >= 63)
+			break;
+	}
+
+	if (ModeCnt >= 63) {
+		ModeCount = 0;
+		MinMode = 0.0;
+		MaxMode = 0.0;
+
+		return;
+	}
+
+	// get the min/max mode heights for peaks
+	ModeCount = 0;
+	MinMode = DBL_MAX;
+	MaxMode = DBL_MIN;
+	for (i = 0; i < ModeCnt; i ++) {
+		if (ModeType[i] == 1 && (Modes[i] >= DataMinElev && Modes[i] <= DataMaxElev)) {
+			MinMode = min(MinMode, Modes[i]);
+			MaxMode = max(MaxMode, Modes[i]);
+
+			ModeCount ++;
+		}
+	}
+/*
+	// output summary
+	FILE* f = fopen("summary.csv", "wt");
+	if (f) {
+		fprintf(f, "Data minimum: %.4f\n", DataMinElev);
+		fprintf(f, "Data maximum: %.4f\n", DataMaxElev);
+		fprintf(f, "%i modes\n", ModeCnt);
+		fprintf(f, "Minimum mode: %.4lf\n", MinMode);
+		fprintf(f, "Maximum mode: %.4lf\n", MaxMode);
+		fprintf(f, "Modes:\n");
+		for (i = 0; i < ModeCnt; i ++) {
+			fprintf(f, "   %2i   %3.4lf   %3.4lf   %2i\n", i + 1, Modes[i], ModeProb[i], ModeType[i]);
+		}
+		for (i = 0; i < STEPS; i ++) {
+			fprintf(f, "%.8lf %.8lf %i\n", Y[i] * 100, X[i], sign[i]);
+		}
+		fclose(f);
+	}
+
+	// "raw" KDE values
+	for (i = 0; i < STEPS; i ++) {
+		if (Color == 0)
+			printf("%8lf %.8lf %.8lf 255 255 255\n", 0.0, Y[i] * 1000, X[i]);
+		else if (Color == 1)
+			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, Y[i] * 100, X[i]);
+		else if (Color == 2)
+			printf("%8lf %.8lf %.8lf 0 255 0\n", 0.0, Y[i] * 100, X[i]);
+		else if (Color == 3)
+			printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Y[i] * 100, X[i]);
+		else if (Color == 4)
+			printf("%8lf %.8lf %.8lf 0 255 255\n", 0.0, Y[i] * 100, X[i]);
+	}
+
+	// smoothed values
+	if (UseSmoothedCurve) {
+		for (i = 0; i < STEPS; i ++) {
+			if (Color == 0)
+				printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, SmoothY[i] * 1000, SmoothX[i]);
+		}
+	}
+
+	// mode lines
+	double Yval;
+	double YStep = 0.001;
+//	double YStep = (MaxModeProb - MinModeProb) / 11.0;
+	if (YStep == 0.0)
+		YStep = 0.001;
+	for (i = 0; i < ModeCnt; i ++) {
+		if (ModeType[i] == 1) {
+			Yval = ModeProb[i] - (YStep * 5.5);
+			for (j = -5; j <= 5; j ++) {
+				printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Yval * 1000.0, Modes[i]);
+				Yval += YStep;
+			}
+		}
+		if (ModeType[i] == -1) {
+			Yval = ModeProb[i] - (YStep * 5.5);
+			for (j = -5; j <= 5; j ++) {
+				printf("%8lf %.8lf %.8lf 0 255 0\n", 0.0, Yval * 1000.0, Modes[i]);
+				Yval += YStep;
+			}
+		}
+	}
+*/
 }
