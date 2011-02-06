@@ -100,6 +100,7 @@
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
 
+#include <algorithm>
 #include <vector>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
@@ -1514,8 +1515,8 @@ int main(int argc, char* argv[])
 												}
 
 												// do min/max
-												ElevStrataMin[k] = min(ElevStrataMin[k], StrataPointList[l].Elevation);
-												ElevStrataMax[k] = max(ElevStrataMax[k], StrataPointList[l].Elevation);
+												ElevStrataMin[k] = std::min<double>(ElevStrataMin[k], StrataPointList[l].Elevation);
+												ElevStrataMax[k] = std::max<double>(ElevStrataMax[k], StrataPointList[l].Elevation);
 
 												break;
 											}
@@ -1622,8 +1623,8 @@ int main(int argc, char* argv[])
 												}
 
 												// do min/max
-												IntStrataMin[k] = min(IntStrataMin[k], StrataPointList[l].Intensity);
-												IntStrataMax[k] = max(IntStrataMax[k], StrataPointList[l].Intensity);
+												IntStrataMin[k] = std::min<double>(IntStrataMin[k], StrataPointList[l].Intensity);
+												IntStrataMax[k] = std::max<double>(IntStrataMax[k], StrataPointList[l].Intensity);
 
 												break;
 											}
