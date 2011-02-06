@@ -20,7 +20,7 @@
 //
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <io.h>
+#include <stdio.h>
 
 BOOL LTKCL_VerifyCommandLine(const char* ValidSwitches)
 {
