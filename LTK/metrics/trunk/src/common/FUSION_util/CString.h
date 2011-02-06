@@ -31,6 +31,7 @@ class CString
 
     // accessors
     operator const char *() const;
+    const char * c_str() const;
     int Find(const char * str) const;
       // Find a string within the current value.  Return its position if found;
       // -1 if not found.
