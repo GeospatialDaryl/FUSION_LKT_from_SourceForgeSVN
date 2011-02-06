@@ -760,7 +760,7 @@ int main(int argc, char* argv[])
 						if (m_CountReturns) {
 							if (m_UseHeightMin) {
 								if (m_UseHeightMax)
-									fprintf(f, ",Return 1 count above %.2lf and below %.2lf,Return 2 count above %.2lf and below %.2lf,Return 3 count above %.2lf and below %.2lf,Return 4 count above %.2lf and below %.2lf,Return 5 count above %.2lf and below %.2lf,Return 6 count above %.2lf and below %.2lf,Return 7 count above %.2lf and below %.2lf,Return 8 count above %.2lf and below %.2lf,Return 9 count above %.2lf and below %.2lf,Other return count above %.2lf and below %.2lf", m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight);
+									fprintf(f, ",Return 1 count above %.2lf and below %.2lf,Return 2 count above %.2lf and below %.2lf,Return 3 count above %.2lf and below %.2lf,Return 4 count above %.2lf and below %.2lf,Return 5 count above %.2lf and below %.2lf,Return 6 count above %.2lf and below %.2lf,Return 7 count above %.2lf and below %.2lf,Return 8 count above %.2lf and below %.2lf,Return 9 count above %.2lf and below %.2lf,Other return count above %.2lf and below %.2lf", m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight, m_MinHeight, m_MaxHeight);
 								else
 									fprintf(f, ",Return 1 count above %.2lf,Return 2 count above %.2lf,Return 3 count above %.2lf,Return 4 count above %.2lf,Return 5 count above %.2lf,Return 6 count above %.2lf,Return 7 count above %.2lf,Return 8 count above %.2lf,Return 9 count above %.2lf,Other return count above %.2lf", m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight, m_MinHeight);
 							}
@@ -1817,7 +1817,7 @@ int main(int argc, char* argv[])
 											fprintf(f, ",%i", ReturnCounts[k]);
 									}
 
-									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
+									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
 											ElevMin, ElevMax, ElevMean, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, CanopyReliefRatio,
@@ -1868,7 +1868,7 @@ int main(int argc, char* argv[])
 									fprintf(f, "\"%s\",%i,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
 								}
 								else if (m_ProduceYZLiOutput) {
-									fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName, PointCount, 0.0, 0.0, 0.0, 0.0);
+									fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
 								}
 								else {
 									if (!m_UseHeightMin && !m_UseHeightMax)
