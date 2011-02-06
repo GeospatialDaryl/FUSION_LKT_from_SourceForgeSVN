@@ -114,8 +114,8 @@
 #include "filespec.h"
 #include "plansdtm.h"
 #include "argslib.h"
-#include <sys/types.h>
-#include <sys/stat.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
 #include "DataCatalogEntry.h"
 #include "Command_line_core_functions.h"
 
