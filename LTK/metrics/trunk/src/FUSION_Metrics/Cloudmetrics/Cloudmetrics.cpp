@@ -595,6 +595,7 @@ int main(int argc, char* argv[])
 {
 	CString csTemp;
 
+/*
 	// initialize MFC and print and error on failure
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
 	{
@@ -603,6 +604,7 @@ int main(int argc, char* argv[])
 		m_nRetCode = 1;
 	}
 	else
+*/
 	{
 		// initialize toolkit variables...if return value is FALSE, /version was on the command line
 		// with /version, only the program name and version information are output
