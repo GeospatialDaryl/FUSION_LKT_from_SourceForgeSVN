@@ -610,6 +610,7 @@ int main(int argc, char* argv[])
 	{
 		// initialize toolkit variables...if return value is FALSE, /version was on the command line
 		// with /version, only the program name and version information are output
+		m_clp.SetCommandLine(argc, argv);
 		if (!LTKCL_Initialize())
 			return(0);
 
