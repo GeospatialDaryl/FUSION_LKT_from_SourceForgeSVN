@@ -59,7 +59,7 @@ BOOL LTKCL_VerifyCommandLine(const char* ValidSwitches)
 		// make sure it is valid for this program
 		if (tsValidSwitches.Find(tsSwitch) < 0) {
 			if (BaseSwitches.Find(tsSwitch) < 0) {
-				csTemp.Format("   Invalid command line switch:%s", tsSwitch);
+				csTemp.Format("   Invalid command line switch:%s", tsSwitch.c_str());
 				LTKCL_PrintStatus(csTemp);
 
 				m_nRetCode = 999;
@@ -231,9 +231,9 @@ void LTKCL_PrintVerboseStatus(LPCTSTR lpszStatus, BOOL AddNewLine)
 		csTemp.Format("(elapsed time since start: %i seconds)", aclock - m_StartTime);
 
 		if (AddNewLine)
-			printf("%s %s\n", lpszStatus, csTemp);
+			printf("%s %s\n", lpszStatus, csTemp.c_str());
 		else
-			printf("%s %s", lpszStatus, csTemp);
+			printf("%s %s", lpszStatus, csTemp.c_str());
 	}
 }
 
@@ -305,7 +305,7 @@ void LTKCL_PrintRunTime()
 void LTKCL_PrintCommandLine()
 {
 	CString csTemp;
-	csTemp.Format("Command line: %s", m_clp.CommandLine());
+	csTemp.Format("Command line: %s", m_clp.CommandLine().c_str());
 
 	// prints the run header with the run date and time
 	LTKCL_PrintStatus(csTemp);

@@ -50,6 +50,13 @@ CString::operator const char *() const
 
 //-----------------------------------------------------------------------------
 
+const char * CString::c_str() const
+{
+  return str_.c_str();
+}
+
+//-----------------------------------------------------------------------------
+
 int CString::Find(const char * str) const
 {
   std::string::size_type findPos = str_.find(str);

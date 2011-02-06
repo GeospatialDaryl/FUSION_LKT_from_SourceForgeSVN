@@ -1718,17 +1718,17 @@ int main(int argc, char* argv[])
 									fprintf(f, "%i,", ID);
 
 								if (m_ProduceHighpointOutput) {
-									fprintf(f, "\"%s\",%i,%lf,%lf,%lf\n", ce.m_FileName, PointCount, HighX, HighY, HighElevation);
+									fprintf(f, "\"%s\",%i,%lf,%lf,%lf\n", ce.m_FileName.c_str(), PointCount, HighX, HighY, HighElevation);
 								}
 								else if (m_ProduceYZLiOutput) {
-									fprintf(f, "\"%s\",%i,%lf,%lf,%lf,%lf\n", ce.m_FileName, PointCount, ElevMean, ElevStdDev, ElevP75, Cover);
+									fprintf(f, "\"%s\",%i,%lf,%lf,%lf,%lf\n", ce.m_FileName.c_str(), PointCount, ElevMean, ElevStdDev, ElevP75, Cover);
 								}
 								else {
 									// print base values
 									if (!m_UseHeightMin && !m_UseHeightMax)
-									fprintf(f, "\"%s\",%s,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), PointCount);
+									fprintf(f, "\"%s\",%s,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), PointCount);
 									else
-										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), TotalPointCount, PointCount);
+										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), TotalPointCount, PointCount);
 
 									if (m_CountReturns) {
 										for (k = 0; k < 10; k ++)
@@ -1789,7 +1789,7 @@ int main(int argc, char* argv[])
 								delete [] IntValueList;
 
 								// status info
-								csTemp.Format("   %s: %i points", ce.m_FileName, PointCount);
+								csTemp.Format("   %s: %i points", ce.m_FileName.c_str(), PointCount);
 								LTKCL_PrintStatus(csTemp);
 							}
 							else if (PointCount >= 1) {
@@ -1800,17 +1800,17 @@ int main(int argc, char* argv[])
 									fprintf(f, "%i,", ID);
 
 								if (m_ProduceHighpointOutput) {
-									fprintf(f, "\"%s\",%i,%lf,%lf,%lf\n", ce.m_FileName, PointCount, HighX, HighY, HighElevation);
+									fprintf(f, "\"%s\",%i,%lf,%lf,%lf\n", ce.m_FileName.c_str(), PointCount, HighX, HighY, HighElevation);
 								}
 								else if (m_ProduceYZLiOutput) {
-									fprintf(f, "\"%s\",%i,%lf,%lf,%lf,%lf\n", ce.m_FileName, PointCount, ElevMean, ElevStdDev, ElevP75, Cover);
+									fprintf(f, "\"%s\",%i,%lf,%lf,%lf,%lf\n", ce.m_FileName.c_str(), PointCount, ElevMean, ElevStdDev, ElevP75, Cover);
 								}
 								else {
 									// print base values
 									if (!m_UseHeightMin && !m_UseHeightMax)
-									fprintf(f, "\"%s\",%s,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), PointCount);
+									fprintf(f, "\"%s\",%s,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), PointCount);
 									else
-										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), TotalPointCount, PointCount);
+										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), TotalPointCount, PointCount);
 	//								fprintf(f, "\"%s\",%i", ce.m_FileName, PointCount);
 
 									if (m_CountReturns) {
@@ -1866,16 +1866,16 @@ int main(int argc, char* argv[])
 									fprintf(f, "0,");
 
 								if (m_ProduceHighpointOutput) {
-									fprintf(f, "\"%s\",%i,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
+									fprintf(f, "\"%s\",%i,0.0,0.0,0.0\n", ce.m_FileName.c_str(), PointCount);
 								}
 								else if (m_ProduceYZLiOutput) {
-									fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
+									fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName.c_str(), PointCount);
 								}
 								else {
 									if (!m_UseHeightMin && !m_UseHeightMax)
-									fprintf(f, "\"%s\",%s,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), PointCount);
+									fprintf(f, "\"%s\",%s,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), PointCount);
 									else
-										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), TotalPointCount, PointCount);
+										fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), TotalPointCount, PointCount);
 	//								fprintf(f, "\"%s\",%i", ce.m_FileName, PointCount);
 
 									if (m_CountReturns) {
@@ -1920,7 +1920,7 @@ int main(int argc, char* argv[])
 								}
 
 								// status info
-								csTemp.Format("***ERROR: Metrics NOT computed for %s...not a valid data file", ce.m_FileName);
+								csTemp.Format("***ERROR: Metrics NOT computed for %s...not a valid data file", ce.m_FileName.c_str());
 								LTKCL_PrintStatus(csTemp);
 							}
 						}
@@ -1930,16 +1930,16 @@ int main(int argc, char* argv[])
 								fprintf(f, "0,");
 
 							if (m_ProduceHighpointOutput) {
-								fprintf(f, "\"%s\",%i,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
+								fprintf(f, "\"%s\",%i,0.0,0.0,0.0\n", ce.m_FileName.c_str(), PointCount);
 							}
 							else if (m_ProduceYZLiOutput) {
-								fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName, PointCount);
+								fprintf(f, "\"%s\",%i,0.0,0.0,0.0,0.0\n", ce.m_FileName.c_str(), PointCount);
 							}
 							else {
 								if (!m_UseHeightMin && !m_UseHeightMax)
-								fprintf(f, "\"%s\",%s,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), PointCount);
+								fprintf(f, "\"%s\",%s,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), PointCount);
 								else
-									fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName, TempfsForFileTitle.FileTitle(), TotalPointCount, PointCount);
+									fprintf(f, "\"%s\",%s,%i,%i", ce.m_FileName.c_str(), TempfsForFileTitle.FileTitle().c_str(), TotalPointCount, PointCount);
 	//							fprintf(f, "\"%s\",%i", ce.m_FileName, PointCount);
 
 								if (m_CountReturns) {
@@ -1986,7 +1986,7 @@ int main(int argc, char* argv[])
 							}
 
 							// status info
-							csTemp.Format("***ERROR: Metrics NOT computed for %s...not a valid data file", ce.m_FileName);
+							csTemp.Format("***ERROR: Metrics NOT computed for %s...not a valid data file", ce.m_FileName.c_str());
 							LTKCL_PrintStatus(csTemp);
 						}
 					}
