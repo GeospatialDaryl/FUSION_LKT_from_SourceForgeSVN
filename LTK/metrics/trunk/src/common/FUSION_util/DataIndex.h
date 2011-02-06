@@ -55,6 +55,8 @@ public:
 	CDataIndex(LPCTSTR DataFileName, int Format, int Width = 256, int Height = 256);
 	virtual ~CDataIndex();
 
+	static long ComputeChecksum(LPCTSTR DataFileName, int UseOldMethod = FALSE);
+
 private:
 	long* m_CellStarts;
 	BOOL m_HaveStarts;
@@ -81,7 +83,6 @@ private:
 	BOOL m_Valid;
 
 protected:
-	long ComputeChecksum(LPCTSTR DataFileName, int UseOldMethod = FALSE);
 	struct pt m_Point;
 	CString m_DataFileName;
 	CString m_IndexFileName;

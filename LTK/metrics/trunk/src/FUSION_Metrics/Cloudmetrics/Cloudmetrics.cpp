@@ -472,7 +472,6 @@ int ParseCommandLine()
 		if (lst.IsValid()) {
 			char buf[1024];
 			CFileSpec TempFS;
-			WIN32_FILE_ATTRIBUTE_DATA attribdata;
 			long chksum;
 			while (lst.ReadASCIILine(buf)) {
 				// parse file name and check to see if it exists
@@ -495,10 +494,8 @@ int ParseCommandLine()
 					// get file modify time and compute checksum value
 					// using low DWORD components should catch all the details.  Not likely the modification time will keep the 
 					// same nanosecond count or that the file size will change by 2Gb chunks
-					chksum = 0;
-					if (GetFileAttributesEx(ce.m_FileName, GetFileExInfoStandard, &attribdata)) {
-						chksum = attribdata.nFileSizeLow + attribdata.ftLastWriteTime.dwLowDateTime;
-					}
+					// (Calculation appears to be the same as method used by CDataIndex)
+					chksum = CDataIndex::ComputeChecksum(ce.m_FileName);
 
 					// if checksum doesn't match clear the information from the catalog entry
 					if (ce.m_CheckSum != chksum) {
