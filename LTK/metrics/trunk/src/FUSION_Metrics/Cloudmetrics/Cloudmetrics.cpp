@@ -100,6 +100,8 @@
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
 
+#include <vector>
+
 #include <time.h>
 #include <float.h>
 #include <math.h>
@@ -147,7 +149,7 @@ typedef struct {
 char* ValidCommandLineSwitches = "above new firstinpulse firstreturn first highpoint subset id minht maxht outlier strata intstrata kde";
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
-CList<CDataCatalogEntry, CDataCatalogEntry&> DataFile;
+std::vector<CDataCatalogEntry> DataFiles;
 int DataFileCount;
 CDataCatalogEntry ce;
 BOOL NewOutputFile;
@@ -459,7 +461,7 @@ int ParseCommandLine()
 					ce.m_MinX = ce.m_MinY = ce.m_MinZ = ce.m_MaxX = ce.m_MaxY = ce.m_MaxZ = 0.0;
 					ce.m_PointDensity= -1.0;
 					ce.m_Points = -1;
-					DataFile.AddTail(ce);
+					DataFiles.push_back(ce);
 
 					DataFileCount ++;
 				}
@@ -505,7 +507,7 @@ int ParseCommandLine()
 						ce.m_Points = -1;
 					}
 
-					DataFile.AddTail(ce);
+					DataFiles.push_back(ce);
 					DataFileCount ++;
 				}
 			}
@@ -531,7 +533,7 @@ int ParseCommandLine()
 				ce.m_MinX = ce.m_MinY = ce.m_MinZ = ce.m_MaxX = ce.m_MaxY = ce.m_MaxZ = 0.0;
 				ce.m_PointDensity= -1.0;
 				ce.m_Points = -1;
-				DataFile.AddTail(ce);
+				DataFiles.push_back(ce);
 
 				DataFileCount ++;
 			}
@@ -542,7 +544,7 @@ int ParseCommandLine()
 			ce.m_MinX = ce.m_MinY = ce.m_MinZ = ce.m_MaxX = ce.m_MaxY = ce.m_MaxZ = 0.0;
 			ce.m_PointDensity= -1.0;
 			ce.m_Points = -1;
-			DataFile.AddTail(ce);
+			DataFiles.push_back(ce);
 
 			DataFileCount = 1;
 		}
@@ -880,9 +882,8 @@ int main(int argc, char* argv[])
 
 				if (f) {
 					// iterate through the list of data files and compute metrics
-					POSITION pos = DataFile.GetHeadPosition();
-					for (i = 0; i < DataFile.GetCount(); i ++) {
-						ce = DataFile.GetNext(pos);
+					for (i = 0; i < int(DataFiles.size()); i ++) {
+						ce = DataFiles[i];
 
 						PointCount = 0;
 						TotalPointCount = 0;
