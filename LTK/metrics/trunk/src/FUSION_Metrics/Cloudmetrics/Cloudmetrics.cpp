@@ -134,7 +134,7 @@ static char THIS_FILE[] = __FILE__;
 /////////////////////////////////////////////////////////////////////////////
 // The one and only application object
 
-CWinApp theApp;
+//CWinApp theApp;
 
 using namespace std;
 
@@ -591,7 +591,7 @@ int compareSPint(const void *arg1, const void *arg2)
 		return(0);
 }
 
-int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+int main(int argc, char* argv[])
 {
 	CString csTemp;
 
