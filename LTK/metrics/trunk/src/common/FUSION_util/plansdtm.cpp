@@ -36,6 +36,7 @@
 #include <boost/filesystem.hpp>
 
 #include "plansdtm.h"
+#include "sigar.h"
 
 int compelev(const void *arg1, const void *arg2)
 {
@@ -2609,11 +2610,13 @@ BOOL PlansDTM::AllocateElevationMemory(void**& ElevData, int DataType, int Colum
 	int i, j;
 
 	// get amount of available memory
+/*
 	MEMORYSTATUS stat;
 	GlobalMemoryStatus(&stat);
+*/
 
 	// calculate how much memory is needed
-	SIZE_T memneeded = Columns * Rows;
+	size_t memneeded = Columns * Rows;
 	if (DataType == 0)
 		memneeded = memneeded * sizeof(short);
 	else if (DataType == 1)
@@ -2627,7 +2630,17 @@ BOOL PlansDTM::AllocateElevationMemory(void**& ElevData, int DataType, int Colum
 	memneeded = memneeded + (memneeded / 100);
 
 	// check available memory against needed memory
-	if (stat.dwAvailPhys < memneeded) {
+	sigar_t *sigar;
+	sigar_mem_t mem_info;
+
+	sigar_open(&sigar);
+	int status = sigar_mem_get(sigar, &mem_info);
+	if (status != SIGAR_OK)
+		return false;
+	sigar_close(sigar);
+
+	if (mem_info.actual_free < memneeded) {
+//	if (stat.dwAvailPhys < memneeded) {
 		return(FALSE);
 	}
 
