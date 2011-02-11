@@ -190,11 +190,11 @@ void LTKCL_PrintToLog(LPCTSTR lpszStatus, BOOL AddNewLine)
 		return;
 
 	if (m_ClearMasterLogFile) {
-		DeleteFile(m_MasterLogFileName);
+		boost::filesystem::remove(m_MasterLogFileName.c_str());
 		m_ClearMasterLogFile = FALSE;
 
 		// delete csv log file and write new header line
-		DeleteFile(m_MasterCSVLogFileName);
+		boost::filesystem::remove(m_MasterCSVLogFileName.c_str());
 //		LTKCL_PrintToCSVLog("Program,Version,Program build date,Command line,Start time,Stop time,Elapsed time (seconds),Status");
 	}
 
