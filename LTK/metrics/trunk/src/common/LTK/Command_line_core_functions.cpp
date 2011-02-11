@@ -349,13 +349,13 @@ void LTKCL_PrintEndReport(int ErrCode)
 	strcpy(temptimestring, asctime(temptime));
 	temptimestring[24] = '\0';
 
-	CString Status;
+	const char * Status;
 	if (ErrCode)
 		Status = _T("Errors");
 	else
 		Status = _T("Success");
 
-	csTemp.Format("\"%s\",%.2f,\"%s %s\",\"%s\",\"%s\",\"%s\",%i,%s", PROGRAM_NAME, PROGRAM_VERSION, __DATE__, __TIME__, m_clp.ParamLine(), temptimestring, timestring, aclock - m_StartTime, Status);
+	csTemp.Format("\"%s\",%.2f,\"%s %s\",\"%s\",\"%s\",\"%s\",%i,%s", PROGRAM_NAME, PROGRAM_VERSION, __DATE__, __TIME__, m_clp.ParamLine().c_str(), temptimestring, timestring, aclock - m_StartTime, Status);
 	LTKCL_PrintToCSVLog(csTemp);
 }
 
