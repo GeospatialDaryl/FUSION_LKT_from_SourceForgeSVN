@@ -18,9 +18,9 @@
 //	a string containing all of the valid switch names and then calls LTKCL_VerifyCommandLine(). If the command line contains
 //	a switch that is not in the list an error is reported.
 //
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
+//#include <stdio.h>
 
 BOOL LTKCL_VerifyCommandLine(const char* ValidSwitches)
 {
