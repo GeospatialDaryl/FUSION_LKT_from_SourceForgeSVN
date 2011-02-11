@@ -440,8 +440,11 @@ int ParseCommandLine()
 	InputFileCL = m_clp.ParamStr(m_clp.FirstNonSwitchIndex());
 	DataFS.SetFullSpec(InputFileCL);
 
-	// get output file specifier
-	OutputFileCL = m_clp.ParamStr(m_clp.FirstNonSwitchIndex() + 1);
+	int InputFileCount = m_clp.ParamCount() - m_clp.FirstNonSwitchIndex();
+	int LastInputFileIndex = m_clp.FirstNonSwitchIndex() + (InputFileCount - 1);
+
+	// get output file specifier (last parameter)
+	OutputFileCL = m_clp.ParamStr(LastInputFileIndex + 1);
 
 	// check to see if the output file exists...if not, set the NewOutputFile flag to include headers
 	// in the output file
@@ -450,7 +453,7 @@ int ParseCommandLine()
 		NewOutputFile = TRUE;
 
 	// build list of input data files...may contain 1 or more files
-	if (DataFS.Extension().CompareNoCase(".txt") == 0) {
+	if (DataFS.Extension().CompareNoCase(".txt") == 0 && InputFileCount == 1) {
 		// read data files from list file
 		CDataFile lst(DataFS.GetFullSpec());
 		if (lst.IsValid()) {
@@ -471,7 +474,7 @@ int ParseCommandLine()
 			}
 		}
 	}
-	else if (DataFS.Extension().CompareNoCase(".csv") == 0) {
+	else if (DataFS.Extension().CompareNoCase(".csv") == 0 && InputFileCount == 1) {
 		// read data files from catalog file
 		CDataFile lst(DataFS.GetFullSpec());
 		if (lst.IsValid()) {
@@ -517,6 +520,8 @@ int ParseCommandLine()
 		}
 	}
 	else {
+		// collect all the input files listed on the command line
+/*
 		// look for data files using file specifier
 		CFileFind finder;
 		int FileCount = 0;
@@ -528,10 +533,14 @@ int ParseCommandLine()
 
 		if (FileCount > 1 || (FileCount == 1 && InputFileCL.FindOneOf("*?") >= 0)) {
 			bWorking = finder.FindFile(InputFileCL);
+*/
 			DataFileCount = 0;
+/*
 			while (bWorking) {
 				bWorking = finder.FindNextFile();
-				ce.m_FileName = finder.GetFilePath();
+*/
+			for (int j = m_clp.FirstNonSwitchIndex(); j <= LastInputFileIndex; ++j) {
+				ce.m_FileName = m_clp.ParamStr(j);
 				ce.m_CheckSum = 0;
 				ce.m_MinX = ce.m_MinY = ce.m_MinZ = ce.m_MaxX = ce.m_MaxY = ce.m_MaxZ = 0.0;
 				ce.m_PointDensity= -1.0;
@@ -540,6 +549,7 @@ int ParseCommandLine()
 
 				DataFileCount ++;
 			}
+/*
 		}
 		else {
 			ce.m_FileName = InputFileCL;
@@ -551,6 +561,7 @@ int ParseCommandLine()
 
 			DataFileCount = 1;
 		}
+*/
 	}
 
 	if (m_ProduceYZLiOutput && !ComputeCover) {
