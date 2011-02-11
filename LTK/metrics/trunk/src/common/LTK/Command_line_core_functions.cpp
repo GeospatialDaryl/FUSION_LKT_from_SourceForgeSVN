@@ -171,7 +171,7 @@ void LTKCL_PrintToCSVLog(LPCTSTR lpszStatus)
 {
 	if (!m_MasterCSVLogFileName.IsEmpty()) {
 		// see if log file exists...if not we need to add header
-		int AddHeader = _access(m_MasterCSVLogFileName, 0);
+		bool AddHeader = boost::filesystem::exists(m_MasterCSVLogFileName.c_str());
 
 		FILE* f = fopen(m_MasterCSVLogFileName, "at+");
 		
