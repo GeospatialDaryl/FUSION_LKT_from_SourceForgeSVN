@@ -2118,13 +2118,13 @@ void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int&
 		}
 
 		EndHalfWindow = 0;
-		for (i = STEPS - 1; i >= STEPS - HalfWindow; i --) {
+		for (i = STEPS - 1; i >= max(HalfWindow, STEPS - HalfWindow); i --) {
 	//	for (i = STEPS - HalfWindow; i < STEPS; i ++) {
 			AveY = 0.0;
 			CellCnt = 0;
 			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
 	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
-				if (j < STEPS) {
+				if (j >= 0 && j < STEPS) {
 					AveY += Y[j];
 					CellCnt ++;
 				}
@@ -2243,31 +2243,28 @@ void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int&
 		for (i = 0; i < ModeCnt; i ++) {
 			fprintf(f, "   %2i   %3.4lf   %3.4lf   %2i\n", i + 1, Modes[i], ModeProb[i], ModeType[i]);
 		}
-		for (i = 0; i < STEPS; i ++) {
-			fprintf(f, "%.8lf %.8lf %i\n", Y[i] * 100, X[i], sign[i]);
+		if (UseSmoothedCurve) {
+			for (i = 0; i < STEPS; i ++) {
+				fprintf(f, "%.8lf %.8lf %i\n", SmoothY[i] * 100, SmoothX[i], sign[i]);
+			}
+		}
+		else {
+			for (i = 0; i < STEPS; i ++) {
+				fprintf(f, "%.8lf %.8lf %i\n", Y[i] * 100, X[i], sign[i]);
+			}
 		}
 		fclose(f);
 	}
 
 	// "raw" KDE values
 	for (i = 0; i < STEPS; i ++) {
-		if (Color == 0)
-			printf("%8lf %.8lf %.8lf 255 255 255\n", 0.0, Y[i] * 1000, X[i]);
-		else if (Color == 1)
-			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 2)
-			printf("%8lf %.8lf %.8lf 0 255 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 3)
-			printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 4)
-			printf("%8lf %.8lf %.8lf 0 255 255\n", 0.0, Y[i] * 100, X[i]);
+		printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Y[i] * 100, X[i]);
 	}
 
 	// smoothed values
 	if (UseSmoothedCurve) {
 		for (i = 0; i < STEPS; i ++) {
-			if (Color == 0)
-				printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, SmoothY[i] * 1000, SmoothX[i]);
+			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, SmoothY[i] * 1000, SmoothX[i]);
 		}
 	}
 
@@ -2295,273 +2292,4 @@ void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int&
 	}
 */
 }
-
-/*
-void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int& ModeCount, double& MinMode, double& MaxMode)
-{
-	int i, j;
-	float MinElev, MaxElev;
-	float DataMinElev, DataMaxElev;
-	int UseSmoothedCurve = TRUE;
-
-	if (SmoothWindow == 0.0)
-		UseSmoothedCurve = FALSE;
-
-	// get the min/max elevation
-	MinElev = 10000000.0;
-	MaxElev = -10000000.0;
-	for (i = 0; i < Pts; i ++) {
-		MinElev = min(MinElev, PointData[i]);
-		MaxElev = max(MaxElev, PointData[i]);
-	}
-
-	// save actual data range
-	DataMinElev = MinElev;
-	DataMaxElev = MaxElev;
-
-	// adjust min/max
-	MinElev -= BW * 3.0;
-	MaxElev += BW * 3.0;
-
-	double X[STEPS];		// elevation/height
-	double Y[STEPS];		// density
-	double SmoothX[STEPS];		// elevation/height
-	double SmoothY[STEPS];		// density
-	char sign[STEPS];	// + or -
-	double Step = (double) (MaxElev - MinElev) / (double) (STEPS - 1);
-	double Constant1 = 1.0 / ((double) Pts * sqrt(2.0 * 3.141592653589793 * BW * BW));
-	double Constant2 = 2.0 * BW * BW;
-	double ExpTerm;
-	double AveY;		// used for sliding window
-
-	// compute probabilites
-	double Ht = MinElev;
-	for (i = 0; i < STEPS; i ++) {
-		ExpTerm = 0.0;
-		for (j = 0; j < Pts; j ++) {
-			ExpTerm += exp(-1.0 * (Ht - PointData[j]) * (Ht - PointData[j]) / Constant2);
-		}
-
-		X[i] = Ht;
-		Y[i] = Constant1 * ExpTerm;
-
-		Ht += Step;
-
-//		printf("%.4lf,%.4lf\n", X[i], Y[i]);
-	}
-
-	// do a sliding window average to smooth
-	if (UseSmoothedCurve) {
-		int EndHalfWindow;
-		int CellCnt;
-		int HalfWindow = (int) (SmoothWindow / Step);
-
-		// force HalfWindow to be odd to make sure window is centered on the point being modified
-		if (HalfWindow % 2 == 0)
-			HalfWindow ++;
-
-		EndHalfWindow = 0;
-		for (i = 0; i < HalfWindow; i ++) {
-			AveY = 0.0;
-			CellCnt = 0;
-			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
-	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
-				if (j >= 0) {
-					AveY += Y[j];
-					CellCnt ++;
-				}
-			}
-			SmoothX[i] = X[i];
-			SmoothY[i] = AveY / ((double) CellCnt);
-
-			EndHalfWindow ++;
-		}
-
-		// this loop should handle only complete windows...window fits within the array bounds
-		for (i = HalfWindow; i < STEPS - HalfWindow; i ++) {
-			if (i == HalfWindow) {
-				// first time...need to get all values
-				AveY = 0.0;
-				CellCnt = 0;
-				for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
-					if (j >= 0 && j < STEPS) {
-						AveY += Y[j];
-						CellCnt ++;
-					}
-				}
-			}
-			else {
-				// after first time only need to change first and last values
-				AveY -= Y[(i - HalfWindow) - 1];		// subtract 1 since i has been advanced by 1 since "group" was formed
-				AveY += Y[(i + HalfWindow)];
-			}
-			SmoothX[i] = X[i];
-			SmoothY[i] = AveY / ((double) CellCnt);
-		}
-
-		EndHalfWindow = 0;
-		for (i = STEPS - 1; i >= STEPS - HalfWindow; i --) {
-	//	for (i = STEPS - HalfWindow; i < STEPS; i ++) {
-			AveY = 0.0;
-			CellCnt = 0;
-			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
-	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
-				if (j < STEPS) {
-					AveY += Y[j];
-					CellCnt ++;
-				}
-			}
-			SmoothX[i] = X[i];
-			SmoothY[i] = AveY / ((double) CellCnt);
-
-			EndHalfWindow ++;
-		}
-	}
-
-	// figure out the signs
-	int FirstMin = FALSE;
-	sign[0] = -1;
-	sign[STEPS - 1] = 1;
-	if (!UseSmoothedCurve) {
-		for (i = 0; i < STEPS; i ++) {
-			// make sure we don't do a mode outside the actual data range
-			if (X[i] >= DataMinElev && X[i] <= DataMaxElev) {
-				if (!FirstMin) {
-					sign[i] = -1;
-					FirstMin = TRUE;
-				}
-				else if (Y[i] > Y[i - 1])
-					sign[i] = 1;
-				else if (Y[i] < Y[i - 1])
-					sign[i] = -1;
-				else
-					sign[i] = 0;
-			}
-			else
-				sign[i] = 0;
-		}
-	}
-	else {
-		// do signs using smoothed values
-		for (i = 0; i < STEPS; i ++) {
-			// make sure we don't do a mode outside the actual data range
-			if (SmoothX[i] >= DataMinElev && SmoothX[i] <= DataMaxElev) {
-				if (!FirstMin) {
-					sign[i] = -1;
-					FirstMin = TRUE;
-				}
-				else if (SmoothY[i] > SmoothY[i - 1])
-					sign[i] = 1;
-				else if (SmoothY[i] < SmoothY[i - 1])
-					sign[i] = -1;
-				else
-					sign[i] = 0;
-			}
-			else
-				sign[i] = 0;
-		}
-	}
-
-	// get mode values
-	double Modes[64];
-	double ModeProb[64];
-	int ModeType[64];
-	int ModeCnt = 0;
-	for (i = 1; i < STEPS; i ++) {
-		// detect transitions from positive slope to flat or negative slope...peaks
-		if (sign[i] != sign[i - 1] && sign[i - 1] == 1) {
-			Modes[ModeCnt] = X[i - 1];
-			ModeProb[ModeCnt] = Y[i - 1];
-			ModeType[ModeCnt] = 1;
-
-//			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, Y[i] * 100.0, X[i]);
-			ModeCnt ++;
-		}
-
-		// detect transitions from negative slope to flat or positive slope...valleys
-		if (sign[i] != sign[i - 1] && sign[i - 1] == -1) {
-			Modes[ModeCnt] = X[i - 1];
-			ModeProb[ModeCnt] = Y[i - 1];
-			ModeType[ModeCnt] = -1;
-
-			ModeCnt ++;
-		}
-	}
-
-	// get the min/max mode heights for peaks
-	ModeCount = 0;
-	MinMode = DBL_MAX;
-	MaxMode = DBL_MIN;
-	for (i = 0; i < ModeCnt; i ++) {
-		if (ModeType[i] == 1) {
-			MinMode = min(MinMode, Modes[i]);
-			MaxMode = max(MaxMode, Modes[i]);
-
-			ModeCount ++;
-		}
-	}
-/*
-	// output summary
-	FILE* f = fopen("summary.csv", "wt");
-	if (f) {
-		fprintf(f, "Data minimum: %.4f\n", DataMinElev);
-		fprintf(f, "Data maximum: %.4f\n", DataMaxElev);
-		fprintf(f, "%i modes\n", ModeCnt);
-		fprintf(f, "Minimum mode: %.4lf\n", MinMode);
-		fprintf(f, "Maximum mode: %.4lf\n", MaxMode);
-		fprintf(f, "Modes:\n");
-		for (i = 0; i < ModeCnt; i ++) {
-			fprintf(f, "   %2i   %3.4lf   %3.4lf   %2i\n", i + 1, Modes[i], ModeProb[i], ModeType[i]);
-		}
-		for (i = 0; i < STEPS; i ++) {
-			fprintf(f, "%.8lf %.8lf %i\n", Y[i] * 100, X[i], sign[i]);
-		}
-		fclose(f);
-	}
-
-	// "raw" KDE values
-	for (i = 0; i < STEPS; i ++) {
-		if (Color == 0)
-			printf("%8lf %.8lf %.8lf 255 255 255\n", 0.0, Y[i] * 1000, X[i]);
-		else if (Color == 1)
-			printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 2)
-			printf("%8lf %.8lf %.8lf 0 255 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 3)
-			printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Y[i] * 100, X[i]);
-		else if (Color == 4)
-			printf("%8lf %.8lf %.8lf 0 255 255\n", 0.0, Y[i] * 100, X[i]);
-	}
-
-	// smoothed values
-	if (UseSmoothedCurve) {
-		for (i = 0; i < STEPS; i ++) {
-			if (Color == 0)
-				printf("%8lf %.8lf %.8lf 255 0 0\n", 0.0, SmoothY[i] * 1000, SmoothX[i]);
-		}
-	}
-
-	// mode lines
-	double Yval;
-	double YStep = 0.001;
-//	double YStep = (MaxModeProb - MinModeProb) / 11.0;
-	if (YStep == 0.0)
-		YStep = 0.001;
-	for (i = 0; i < ModeCnt; i ++) {
-		if (ModeType[i] == 1) {
-			Yval = ModeProb[i] - (YStep * 5.5);
-			for (j = -5; j <= 5; j ++) {
-				printf("%8lf %.8lf %.8lf 255 255 0\n", 0.0, Yval * 1000.0, Modes[i]);
-				Yval += YStep;
-			}
-		}
-		if (ModeType[i] == -1) {
-			Yval = ModeProb[i] - (YStep * 5.5);
-			for (j = -5; j <= 5; j ++) {
-				printf("%8lf %.8lf %.8lf 0 255 0\n", 0.0, Yval * 1000.0, Modes[i]);
-				Yval += YStep;
-			}
-		}
-	}
-*/
 
