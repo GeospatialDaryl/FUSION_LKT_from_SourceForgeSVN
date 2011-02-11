@@ -66,3 +66,8 @@ add_executable (${PROGRAM_NAME} ${SRC_FILES} ${HDR_FILES} ${UTIL_SRCS})
 target_link_libraries (${PROGRAM_NAME}
                        ${Boost_FILESYSTEM_LIBRARY}
                        ${Boost_SYSTEM_LIBRARY})
+
+if (MSVC)
+  #  Link with setargv.obj so wildcards on command line are expanded
+  set_target_properties(${PROGRAM_NAME} PROPERTIES LINK_FLAGS setargv.obj)
+endif()
