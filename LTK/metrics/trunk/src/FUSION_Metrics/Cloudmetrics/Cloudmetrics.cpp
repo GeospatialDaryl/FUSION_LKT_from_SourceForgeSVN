@@ -131,7 +131,7 @@
 #define		MAX_NUMBER_OF_STRATA		32
 
 #ifdef _DEBUG
-#define new DEBUG_NEW
+//#define new DEBUG_NEW
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
