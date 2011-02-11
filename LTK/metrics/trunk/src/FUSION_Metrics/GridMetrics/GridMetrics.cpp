@@ -5741,13 +5741,13 @@ void GaussianKDE(float* PointData, int Pts, double BW, double SmoothWindow, int&
 		}
 
 		EndHalfWindow = 0;
-		for (i = STEPS - 1; i >= STEPS - HalfWindow; i --) {
+		for (i = STEPS - 1; i >= max(HalfWindow, STEPS - HalfWindow); i --) {
 	//	for (i = STEPS - HalfWindow; i < STEPS; i ++) {
 			AveY = 0.0;
 			CellCnt = 0;
 			for (j = i - EndHalfWindow; j <= i + EndHalfWindow; j ++) {
 	//		for (j = i - HalfWindow; j <= i + HalfWindow; j ++) {
-				if (j < STEPS) {
+				if (j >= 0 && j < STEPS) {
 					AveY += Y[j];
 					CellCnt ++;
 				}
