@@ -242,30 +242,20 @@ void LTKCL_ReportProductFile(LPCTSTR lpszFileName, LPCTSTR lpszProductType)
 	// reports a product from processing...includes date and time for the file
 	// file should be closed and should not be written to after the call to report the product
 	// to maintain the time stamp
-	char* months[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-	char* ampm[] = {"AM", "PM"};
 
 	if (!m_RunQuiet) {
 		// get the file info
-		WIN32_FILE_ATTRIBUTE_DATA attribdata;
-		FILETIME filetime;
-		SYSTEMTIME  systime;
-		if (GetFileAttributesEx(lpszFileName, GetFileExInfoStandard, &attribdata)) {
-			FileTimeToLocalFileTime(&attribdata.ftLastWriteTime, &filetime);
-			FileTimeToSystemTime(&filetime, &systime);
-
-			// check for am or pm and adjust the hours accordingly
-			int pmflag = 0;
-			if (systime.wHour > 12) {
-				pmflag = 1;
-				systime.wHour -= 12;
-			}
+		boost::filesystem::path dataFileName(lpszFileName);
+		std::time_t lastWriteTime = boost::filesystem::last_write_time(dataFileName);
+		std::tm * lastWriteTimeUTC = std::gmtime(& lastWriteTime);
+		const size_t bufferLength = 50;
+		char lastWriteTimeStr[bufferLength];
+		std::strftime(lastWriteTimeStr, bufferLength, "%a %d, %Y @ %I:%M %p", lastWriteTimeUTC);
 
 			CString csTemp;
-			csTemp.Format("%s file produced:\n   %s    %s %i, %i @ %i:%02i %s\n", lpszProductType, lpszFileName, months[systime.wMonth], systime.wDay, systime.wYear, systime.wHour, systime.wMinute, ampm[pmflag]);
+			csTemp.Format("%s file produced:\n   %s    %s\n", lpszProductType, lpszFileName, lastWriteTimeStr);
 
 			LTKCL_PrintStatus(csTemp, FALSE);
-		}
 	}
 }
 
