@@ -25,7 +25,7 @@ CDataCatalogEntry::~CDataCatalogEntry()
 
 }
 
-CDataCatalogEntry& CDataCatalogEntry::operator=(CDataCatalogEntry& src)
+CDataCatalogEntry& CDataCatalogEntry::operator=(const CDataCatalogEntry& src)
 {
 	m_FileName = src.m_FileName;
 	m_CheckSum = src.m_CheckSum;

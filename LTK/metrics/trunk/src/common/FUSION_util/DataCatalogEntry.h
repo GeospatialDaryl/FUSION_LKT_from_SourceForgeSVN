@@ -28,7 +28,7 @@ public:
 	double	m_PointDensity;
 	int		m_Points;
 
-	CDataCatalogEntry& operator=(CDataCatalogEntry& src);
+	CDataCatalogEntry& operator=(const CDataCatalogEntry& src);
 };
 
 #endif // !defined(AFX_DATACATALOGENTRY_H__770A58BE_9C2A_4690_BF90_B53CF28258E1__INCLUDED_)
