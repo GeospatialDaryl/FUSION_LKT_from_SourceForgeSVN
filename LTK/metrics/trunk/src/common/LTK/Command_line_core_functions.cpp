@@ -31,8 +31,7 @@ BOOL LTKCL_VerifyCommandLine(const char* ValidSwitches)
 	CString BaseSwitches(" quiet interactive newlog log version verbose ");
 
 	// add spaces to the beginning and end of the valid switch string
-	tsValidSwitches.Insert(0, " ");
-	tsValidSwitches.Insert(tsValidSwitches.GetLength() + 1, " ");
+	tsValidSwitches.Format(" %s ", tsValidSwitches.c_str());
 
 	// make lower case
 	tsValidSwitches.MakeLower();
@@ -54,7 +53,7 @@ BOOL LTKCL_VerifyCommandLine(const char* ValidSwitches)
 
 		// add a space to the beginning and end of the switch string...helps when a keyword is also embedded in another keyword
 		// e.g. lasclass and class
-		tsSwitch = _T(" ") + tsSwitch + _T(" ");
+		tsSwitch.Format(" %s ", tsSwitch.c_str());
 
 		// make sure it is valid for this program
 		if (tsValidSwitches.Find(tsSwitch) < 0) {
