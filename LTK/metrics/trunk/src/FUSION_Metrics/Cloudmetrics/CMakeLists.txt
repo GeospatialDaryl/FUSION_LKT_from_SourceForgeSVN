@@ -18,6 +18,36 @@ get_filename_component(METRICS_TOOLS_DIR "${PROJECT_SOURCE_DIR}" PATH)
 #  shared code)
 get_filename_component(ALL_SOURCE_ROOT "${METRICS_TOOLS_DIR}" PATH)
 
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set (SYSTEM_BIT_SIZE 32)
+else()
+  set (SYSTEM_BIT_SIZE 64)
+endif()
+message ("${SYSTEM_BIT_SIZE}-bit system")
+
+# find the SIGAR library
+if (APPLE)
+  if (SYSTEM_BIT_SIZE EQUAL 32)
+    set (SIGAR_NAME sigar-universal-macosx)
+  else()
+    set (SIGAR_NAME sigar-universal64-macosx)
+  endif()
+elseif (WIN32)
+  if (SYSTEM_BIT_SIZE EQUAL 32)
+    set (SIGAR_NAME sigar-x86-winnt)
+  else()
+    set (SIGAR_NAME sigar-amd64-winnt)
+  endif()
+else()
+  message (FATAL ERROR "Only have SIGAR libraries for OS X and Windows.")
+endif()
+
+set (SIGAR_DIR ${ALL_SOURCE_ROOT}/third-party/SIGAR)
+find_library (SIGAR_LIBRARY ${SIGAR_NAME} ${SIGAR_DIR}/lib)
+include_directories (${SIGAR_DIR}/include)
+
+
 #  The directory with the code common to all the metric tools
 set (COMMON_DIR ${ALL_SOURCE_ROOT}/common)
 
@@ -65,7 +95,8 @@ set (PROGRAM_NAME Cloudmetrics)
 add_executable (${PROGRAM_NAME} ${SRC_FILES} ${HDR_FILES} ${UTIL_SRCS})
 target_link_libraries (${PROGRAM_NAME}
                        ${Boost_FILESYSTEM_LIBRARY}
-                       ${Boost_SYSTEM_LIBRARY})
+                       ${Boost_SYSTEM_LIBRARY}
+                       ${SIGAR_LIBRARY})
 
 if (MSVC)
   #  Link with setargv.obj so wildcards on command line are expanded
