@@ -84,6 +84,18 @@ class CString
       sprintf(buffer, formatStr, val1, val2, val3);
       str_ = buffer;
     }
+    template<typename T1, typename T2, typename T3, typename T4, typename T5>
+    void Format(const char * formatStr, T1 val1, T2 val2, T3 val3, T4 val4, T5 val5)
+    {
+      sprintf(buffer, formatStr, val1, val2, val3, val4, val5);
+      str_ = buffer;
+    }
+    template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9>
+    void Format(const char * formatStr, T1 val1, T2 val2, T3 val3, T4 val4, T5 val5, T6 val6, T7 val7, T8 val8, T9 val9)
+    {
+      sprintf(buffer, formatStr, val1, val2, val3, val4, val5, val6, val7, val8, val9);
+      str_ = buffer;
+    }
 
 
   private:
