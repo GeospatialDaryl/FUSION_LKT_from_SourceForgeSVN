@@ -359,6 +359,10 @@ void LTKCL_PrintEndReport(int ErrCode)
 	LTKCL_PrintToCSVLog(csTemp);
 }
 
+//-----------------------------------------------------------------------------
+// Since the call to this function is commented out in both metrics programs,
+// the function is disabled (besides it's Windows specific).
+/*
 void LTKCL_LaunchHelpPage()
 {
 	// launch web page for help info...will silently fail if file doesn't exist
@@ -366,3 +370,4 @@ void LTKCL_LaunchHelpPage()
 	HTMLFile.Format("doc\\%s.htm", PROGRAM_NAME);
 	::ShellExecute(NULL, "open", HTMLFile, NULL, NULL, SW_SHOWNORMAL);
 }
+*/
