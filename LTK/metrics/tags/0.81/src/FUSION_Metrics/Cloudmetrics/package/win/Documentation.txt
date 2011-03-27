@@ -1,0 +1,6 @@
+FUSION Metrics @VERSION_RELEASE@
+
+To run the metrics programs, start the FUSION Metrics Command Prompt, and
+then enter "Cloudmetrics" at the prompt.  To print information about the
+parameters and switches (also known as "options") that the program accepts
+on the command line, run Cloudmetrics without any arguments.
