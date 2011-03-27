@@ -5,6 +5,13 @@ project (CloudMetrics CXX)
 set (SRC_FILES Cloudmetrics.cpp)
 set (HDR_FILES StdAfx.h)
 
+if (WIN32)
+  #  The FindBoost module looks for dynamic libraries by default.  But Boost's
+  #  auto-linking on Windows uses static libraries by default.  These two
+  #  defaults will cause linker errors about multiple definitions of symbols.
+  #  So tell FindBoost to look for static libraries.
+  set (Boost_USE_STATIC_LIBS ON)
+endif()
 find_package (Boost 1.39 COMPONENTS filesystem
                                     system)
 link_directories (${Boost_LIBRARY_DIRS})
