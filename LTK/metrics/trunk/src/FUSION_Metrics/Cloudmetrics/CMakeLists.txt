@@ -109,3 +109,49 @@ if (MSVC)
   #  Link with setargv.obj so wildcards on command line are expanded
   set_target_properties(${PROGRAM_NAME} PROPERTIES LINK_FLAGS setargv.obj)
 endif()
+
+#-----------------------------------------------------------------------------
+# Packaging
+
+install (TARGETS ${PROGRAM_NAME} DESTINATION bin)
+if (MSVC)
+  install (PROGRAMS package/win/set_path.bat DESTINATION bin)
+ 
+  include (InstallRequiredSystemLibraries)
+
+  set (DOC_FILE "Documentation.txt")
+  set (PROGRAM_DOC "${PROJECT_BINARY_DIR}/${DOC_FILE}")
+  configure_file("${PROJECT_SOURCE_DIR}/package/win/${DOC_FILE}" "${PROGRAM_DOC}")
+  install (FILES "${PROGRAM_DOC}" DESTINATION doc)
+endif()
+
+set (LICENSE_FILE "${PROJECT_SOURCE_DIR}/package/LICENSE.txt")
+if (MSVC)
+  #  Make sure the license has Windows line endings for Notepad.
+  set (LICENSE_FILE_WINDOWS "${PROJECT_BINARY_DIR}/LICENSE.txt")
+  configure_file("${LICENSE_FILE}" "${LICENSE_FILE_WINDOWS}")
+  install (FILES "${LICENSE_FILE_WINDOWS}" DESTINATION .)
+endif()
+
+set (VERSION "0.81.0")
+set (VERSION_MAJOR 0)
+set (VERSION_MINOR 81)
+set (VERSION_RELEASE_ABBR "${VERSION}")
+
+set (APP_NAME "FUSION Metrics")
+string (REGEX REPLACE " " "-" APP_NAME_NO_SPACES "${APP_NAME}")
+set (CPACK_PACKAGE_VERSION              ${VERSION})
+set (CPACK_PACKAGE_VERSION_MAJOR        ${VERSION_MAJOR})
+set (CPACK_PACKAGE_VERSION_MINOR        ${VERSION_MINOR})
+set (CPACK_PACKAGE_FILE_NAME            "${APP_NAME_NO_SPACES}-${VERSION_RELEASE_ABBR}-setup")
+set (CPACK_PACKAGE_INSTALL_DIRECTORY    "${APP_NAME} ${VERSION_RELEASE_ABBR}")
+set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${APP_NAME} ${VERSION_RELEASE_ABBR}")
+set (CPACK_RESOURCE_FILE_LICENSE        "${LICENSE_FILE}")
+
+set (CPACK_OPTIONS_FILE "${PROJECT_BINARY_DIR}/CPackOptions.cmake")
+configure_file ("${PROJECT_SOURCE_DIR}/package/CPackOptions.cmake.in"
+                "${CPACK_OPTIONS_FILE}"
+                @ONLY)
+set (CPACK_PROJECT_CONFIG_FILE "${CPACK_OPTIONS_FILE}")
+
+include(CPack)
