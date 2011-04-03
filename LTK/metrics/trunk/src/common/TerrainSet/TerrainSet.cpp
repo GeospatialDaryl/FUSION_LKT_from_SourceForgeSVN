@@ -19,7 +19,6 @@
 //	interpolating a new grid or other "ordered" set of points. May slow things down when working with random point locations.
 //
 
-#include "stdafx.h"
 #include <math.h>
 #include "TerrainSet.h"
 
@@ -96,14 +95,14 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 	CString csTemp;
 
 	if (Count) {
-		m_FileList.RemoveAll();
+		m_FileList.clear();
 		if (Count > 1 || (Count == 1 && FileSpec.FindOneOf("*?") >= 0)) {
 			// multiple files or a single match to a wild card specifier
 			CFileFind finder;
 			BOOL bWorking = finder.FindFile(FileSpec);
 			while (bWorking) {
 				bWorking = finder.FindNextFile();
-				m_FileList.Add(finder.GetFilePath());
+				m_FileList.push_back(finder.GetFilePath());
 			}
 		}
 		else {		// only 1 file matched FileSpec and no wildcard...might be list file or single model
@@ -117,7 +116,7 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 					char buf[1024];
 					Count = 0;
 					while (lst.NewReadASCIILine(buf)) {
-						m_FileList.Add(buf);
+						m_FileList.push_back(buf);
 						Count ++;
 					}
 				}
@@ -126,7 +125,7 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 			}
 			else {
 				// only 1 file directly specified (no wild card characters)
-				m_FileList.Add(FileSpec);
+				m_FileList.push_back(FileSpec);
 			}
 		}
 	}
