@@ -65,8 +65,6 @@ set (UTIL_FILENAMES argslib.cpp
                     argslib.h
                     CString.cpp
                     CString.h
-                    DataCatalogEntry.cpp
-                    DataCatalogEntry.h 
                     DataFile.cpp
                     DataFile.h
                     DataIndex.cpp
