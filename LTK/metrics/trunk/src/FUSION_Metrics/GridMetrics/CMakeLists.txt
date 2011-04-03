@@ -91,10 +91,18 @@ include_directories (${ARRAY2D_DIR})
 set (ARRAY2D_HDR ${ARRAY2D_DIR}/Array2DTemplate.h)
 source_group("2D Array" FILES ${ARRAY2D_HDR})
 
+#  The directory with TerrainSet code
+set (TERRAIN_SET_DIR ${COMMON_DIR}/TerrainSet)
+
+foreach (name TerrainSet.cpp TerrainSet.h)
+  list (APPEND TERRAIN_SET_SRCS ${TERRAIN_SET_DIR}/${name})
+endforeach()
+source_group("Terrain Set" FILES ${TERRAIN_SET_SRCS})
+
 #  The directory with the code shared by the LTK programs
 set (LTK_DIR ${COMMON_DIR}/LTK)
 
-include_directories ( ${PROJECT_SOURCE_DIR} ${FUSION_UTIL} ${LTK_DIR} )
+include_directories ( ${PROJECT_SOURCE_DIR} ${FUSION_UTIL} ${TERRAIN_SET_DIR} ${LTK_DIR} )
 
 if (MSVC)
   #  Disable warning C4996 about unsafe functions in stdio.h
@@ -102,7 +110,7 @@ if (MSVC)
 endif()
 
 set (PROGRAM_NAME Gridmetrics)
-add_executable (${PROGRAM_NAME} ${SRC_FILES} ${UTIL_SRCS} ${ARRAY2D_HDR})
+add_executable (${PROGRAM_NAME} ${SRC_FILES} ${UTIL_SRCS} ${ARRAY2D_HDR} ${TERRAIN_SET_SRCS})
 target_link_libraries (${PROGRAM_NAME}
                        ${Boost_FILESYSTEM_LIBRARY}
                        ${Boost_SYSTEM_LIBRARY}
