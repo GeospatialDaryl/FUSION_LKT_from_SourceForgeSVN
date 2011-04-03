@@ -146,21 +146,34 @@
 //	Added new metrics: Canopy relief ratio, height strata (elevation and intensity metrics), MAD_MED, MAD_MODE, #modes
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
-#include "stdafx.h"
-#include "gridmetrics.h"
+
+#include <vector>
+#include <boost/algorithm/string.hpp>
+#include <boost/foreach.hpp>
+
+//#include "stdafx.h"
+//#include "gridmetrics.h"
 #include <time.h>
-#include "..\..\fusion\versionID.h"
+#include "../../fusion/versionID.h"
 #include "plansdtm.h"
 //#include "image.h"
 #include "lidardata.h"
 #include "dataindex.h"
 #include "filespec.h"
 #include "argslib.h"
+//-----------------------------------------------------------------------------
+
+void DeleteFile(const char * filename)
+{
+  boost::filesystem::remove(filename);
+}
+
 #include "array2dtemplate.h"
 #include "TerrainSet.h"
 #include "command_line_core_functions.h"
 #include <float.h>
 #include <math.h>
+#include "sigar.h"
 
 #ifdef _DEBUG
 //#define new DEBUG_NEW
@@ -308,15 +321,15 @@ int compareelevation(const void *arg1, const void *arg2)
 /////////////////////////////////////////////////////////////////////////////
 // The one and only application object
 
-CWinApp theApp;
+//CWinApp theApp;
 
 using namespace std;
 
 char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster strata intstrata kde";
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
-CArray<CString, CString> m_DataFile;
-CArray<CString, CString> m_GroundFiles;
+std::vector<CString> m_DataFile;
+std::vector<CString> m_GroundFiles;
 int m_GroundFileCount;
 BOOL m_GroundFromDisk;
 CString m_FirstDataFile;
@@ -793,7 +806,7 @@ int PresentInteractiveDialog()
 {
 	if (m_RunInteractive) {
 		usage();
-		::MessageBox(NULL, "Interactive mode is not currently implemented", PROGRAM_NAME, MB_OK);
+		printf("\n%s - Interactive mode is not currently implemented", PROGRAM_NAME);
 		return(1);		// temp...needs to reflect success/failure in interactive mode or user pressing cancel
 	}
 	return(0);
@@ -888,9 +901,13 @@ int ParseCommandLine()
 		CString temp = m_clp.GetSwitchStr("strata", "");
 		if (!temp.IsEmpty()) {
 			m_HeightStrataCount = 0;
-			char* c = strtok(temp.LockBuffer(), ",");
-			while (c) {
-				m_HeightStrata[m_HeightStrataCount] = atof(c);
+//			char* c = strtok(temp.LockBuffer(), ",");
+//			while (c) {
+			std::string switchValue(temp);
+			std::vector<std::string> heights;
+			boost::algorithm::split(heights, switchValue, boost::algorithm::is_any_of(","));
+			BOOST_FOREACH(const std::string & height, heights) {
+				m_HeightStrata[m_HeightStrataCount] = atof(height.c_str());
 				m_HeightStrataCount ++;
 
 				// check number of strata
@@ -901,9 +918,9 @@ int ParseCommandLine()
 					// need break if we add a return variable
 //					break;
 				}
-				c = strtok(NULL, ",");
+//				c = strtok(NULL, ",");
 			}
-			temp.ReleaseBuffer();
+//			temp.ReleaseBuffer();
 
 			// add a final strata to define upper bound
 			m_HeightStrata[m_HeightStrataCount] = DBL_MAX;
@@ -928,9 +945,13 @@ int ParseCommandLine()
 		CString temp = m_clp.GetSwitchStr("intstrata", "");
 		if (!temp.IsEmpty()) {
 			m_HeightStrataIntensityCount = 0;
-			char* c = strtok(temp.LockBuffer(), ",");
-			while (c) {
-				m_HeightStrataIntensity[m_HeightStrataIntensityCount] = atof(c);
+//			char* c = strtok(temp.LockBuffer(), ",");
+//			while (c) {
+			std::string switchValue(temp);
+			std::vector<std::string> heights;
+			boost::algorithm::split(heights, switchValue, boost::algorithm::is_any_of(","));
+			BOOST_FOREACH(const std::string & height, heights) {
+				m_HeightStrataIntensity[m_HeightStrataIntensityCount] = atof(height.c_str());
 				m_HeightStrataIntensityCount ++;
 				
 				if (m_HeightStrataIntensityCount >= MAX_NUMBER_OF_STRATA) {
@@ -940,9 +961,9 @@ int ParseCommandLine()
 					// need break if we add a return variable
 //					break;
 				}
-				c = strtok(NULL, ",");
+//				c = strtok(NULL, ",");
 			}
-			temp.ReleaseBuffer();
+//			temp.ReleaseBuffer();
 		
 			// add a final strata to define upper bound
 			m_HeightStrataIntensity[m_HeightStrataIntensityCount] = DBL_MAX;
@@ -968,7 +989,7 @@ int ParseCommandLine()
 		CString csOrigin = m_clp.GetSwitchStr("grid", "-9999.0,-9999.0,-9999.0,-9999.0");
 		sscanf(csOrigin, "%lf,%lf,%lf,%lf", &m_CustomOriginX, &m_CustomOriginY, &m_CustomGridWidth, &m_CustomGridHeight);
 		if (m_CustomOriginX == -9999.0 || m_CustomOriginY == -9999.0) {
-			csTemp.Format("Invalid grid switch parameters: (%s)", csOrigin);
+			csTemp.Format("Invalid grid switch parameters: (%s)", csOrigin.c_str());
 			LTKCL_PrintStatus(csTemp);
 			m_UserGrid = FALSE;
 			nRetCode = 5;
@@ -980,7 +1001,7 @@ int ParseCommandLine()
 		CString csOrigin = m_clp.GetSwitchStr("gridxy", "-9999.0,-9999.0,-9999.0,-9999.0");
 		sscanf(csOrigin, "%lf,%lf,%lf,%lf", &m_CustomOriginX, &m_CustomOriginY, &m_CustomMaxX, &m_CustomMaxY);
 		if (m_CustomOriginX == -9999.0 || m_CustomOriginY == -9999.0) {
-			csTemp.Format("Invalid gridxy switch parameters: (%s)", csOrigin);
+			csTemp.Format("Invalid gridxy switch parameters: (%s)", csOrigin.c_str());
 			LTKCL_PrintStatus(csTemp);
 			m_UserGridXY = FALSE;
 			nRetCode = 6;
@@ -990,7 +1011,7 @@ int ParseCommandLine()
 	m_ForceAlignment = m_clp.Switch("align");
 	m_ForceExtent = m_clp.Switch("extent");
 	if (m_ForceAlignment && m_ForceExtent) {
-		csTemp.Format("You cannot use the /align and /extent switches at the same time");
+		csTemp = "You cannot use the /align and /extent switches at the same time";
 		LTKCL_PrintStatus(csTemp);
 		m_ForceAlignment = FALSE;
 		m_ForceExtent = FALSE;
@@ -1013,7 +1034,7 @@ int ParseCommandLine()
 				m_CustomMaxY = tdtm.OriginY() + tdtm.Height();
 			}
 			else {
-				csTemp.Format("Could not open the .dtm file specified for alignment: %s", AlignmentModel);
+				csTemp.Format("Could not open the .dtm file specified for alignment: %s", AlignmentModel.c_str());
 				LTKCL_PrintStatus(csTemp);
 				m_ForceAlignment = FALSE;
 				m_ForceExtent = FALSE;
@@ -1251,14 +1272,14 @@ int ParseCommandLine()
 				while (lst.NewReadASCIILine(buf)) {
 					TempFS.SetFullSpec(buf);
 					if (TempFS.Exists()) {
-						m_DataFile.Add(TempFS.GetFullSpec());
+						m_DataFile.push_back(TempFS.GetFullSpec());
 						m_DataFileCount ++;
 					}
 				}
 			}
 		}
 		else {
-			csTemp.Format("Can't open list file (doesn't exist): %s", m_FirstDataFile);
+			csTemp.Format("Can't open list file (doesn't exist): %s", m_FirstDataFile.c_str());
 			LTKCL_PrintStatus(csTemp);
 			nRetCode = 9;
 			m_DataFileCount = 0;
@@ -1266,6 +1287,7 @@ int ParseCommandLine()
 	}
 	else {
 		// see if first data file expands to multiple files
+/* NOW GLOBBING DONE BY setargv.obj
 		CFileFind finder;
 		int FileCount = 0;
 		BOOL bWorking = finder.FindFile(m_FirstDataFile);
@@ -1284,20 +1306,21 @@ int ParseCommandLine()
 			}
 		}
 		else {
-			m_DataFile.Add(m_FirstDataFile);
+*/
+			m_DataFile.push_back(m_FirstDataFile);
 			if (m_UseGround) {
 				for (i = m_clp.FirstNonSwitchIndex() + 5; i < m_clp.ParamCount(); i ++) {
-					m_DataFile.Add(CString(m_clp.ParamStr(i)));
+					m_DataFile.push_back(CString(m_clp.ParamStr(i)));
 					m_DataFileCount ++;
 				}
 			}
 			else {
 				for (i = m_clp.FirstNonSwitchIndex() + 4; i < m_clp.ParamCount(); i ++) {
-					m_DataFile.Add(CString(m_clp.ParamStr(i)));
+					m_DataFile.push_back(CString(m_clp.ParamStr(i)));
 					m_DataFileCount ++;
 				}
 			}
-		}
+//		}
 	}
 
 	// see if ground file given on command line expands into more than 1 file
@@ -1423,7 +1446,18 @@ int ParseCommandLine()
 	return(nRetCode);
 }
 
-int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+//-----------------------------------------------------------------------------
+
+CString operator+(const CString & CStr, const char * c_str)
+{
+  CString result(CStr);
+  result += c_str;
+  return result;
+}
+
+//-----------------------------------------------------------------------------
+
+int main(int argc, char* argv[])
 {
 	float Fraction;
 	int WholePart;
@@ -1435,6 +1469,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	CLidarData ldat;
 	int i, j, k, l, m, p;
 
+/*
 	// initialize MFC and print and error on failure
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
 	{
@@ -1443,6 +1478,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 		m_nRetCode = 1;
 	}
 	else
+*/
 	{
 		// initialize toolkit variables...if return value is FALSE, /version was on the command line
 		// with /version, only the program name and version information are output
@@ -1477,7 +1513,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				for (i = 0; i < m_DataFileCount; i ++) {
 					ldat.Open(m_DataFile[i]);
 					if (!ldat.IsValid()) {
-						m_csStatus.Format("Can't open data file: %s", m_DataFile[i]);
+						m_csStatus.Format("Can't open data file: %s", m_DataFile[i].c_str());
 						LTKCL_PrintStatus(m_csStatus);
 						m_nRetCode = 2;
 					}
@@ -1487,7 +1523,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 				// check ground DTM
 				if (m_UseGround && !m_Terrain.IsValid()) {
-					m_csStatus.Format("Problems with the ground surface model(s): %s", m_GroundFileName);
+					m_csStatus.Format("Problems with the ground surface model(s): %s", m_GroundFileName.c_str());
 					LTKCL_PrintStatus(m_csStatus);
 
 					m_nRetCode = 3;
@@ -1496,7 +1532,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				
 				// check canopy DTM
 				if (m_UseCanopy && !m_CanopyDTM.IsValid()) {
-					m_csStatus.Format("Can't open the canopy model: %s", m_CanopyFileName);
+					m_csStatus.Format("Can't open the canopy model: %s", m_CanopyFileName.c_str());
 					LTKCL_PrintStatus(m_csStatus);
 					m_nRetCode = 4;			// disable to allow processing without canopy
 				}
@@ -1707,7 +1743,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									}
 									ldat.Close();
 
-									m_csStatus.Format("   %s: %i points", m_DataFile[i], FilePointCount);
+									m_csStatus.Format("   %s: %i points", m_DataFile[i].c_str(), FilePointCount);
 									LTKCL_PrintStatus(m_csStatus);
 
 									continue;
@@ -1768,9 +1804,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 						}
 						// report total number of points in each file
 						if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent)
-							m_csStatus.Format("   %s: %i points within grid area", m_DataFile[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points within grid area", m_DataFile[i].c_str(), FilePointCount);
 						else
-							m_csStatus.Format("   %s: %i points", m_DataFile[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points", m_DataFile[i].c_str(), FilePointCount);
 						LTKCL_PrintStatus(m_csStatus);
 					}
 
@@ -1886,12 +1922,24 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 						// be an even multiple of the cell size
 
 						// get amount of available memory
+/*
 						MEMORYSTATUS stat;
 						GlobalMemoryStatus(&stat);
+*/
 						PointRecord* Points = NULL;
 
 						// check available memory against number of points
-						if (stat.dwAvailPhys / 16 > PointCount + 10000) {
+//						if (stat.dwAvailPhys / 16 > PointCount + 10000) {
+						sigar_t *sigar;
+						sigar_mem_t mem_info;
+
+						sigar_open(&sigar);
+						int status = sigar_mem_get(sigar, &mem_info);
+						if (status != SIGAR_OK)
+								mem_info.actual_free = 0;
+						sigar_close(sigar);
+
+						if (mem_info.actual_free / 16 > PointCount + 10000) {
 							// allocate memory for a list of points
 							TRY {
 								Points = new PointRecord[PointCount];
@@ -1919,7 +1967,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								LTKCL_PrintVerboseStatus(m_csStatus);
 								for (i = 0; i < m_Terrain.GetModelCount(); i ++) {
 									if (m_Terrain.AreModelElevationsInMemory(i)) {
-										m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i), i + 1, m_GroundFileCount);
+										m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i).c_str(), i + 1, m_GroundFileCount);
 										LTKCL_PrintVerboseStatus(m_csStatus);
 									}
 								}
@@ -1936,7 +1984,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									LTKCL_PrintVerboseStatus(m_csStatus);
 									for (i = 0; i < m_Terrain.GetModelCount(); i ++) {
 										if (m_Terrain.WasModelUsedForInternalModel(i)) {
-											m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i), i + 1, m_GroundFileCount);
+											m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i).c_str(), i + 1, m_GroundFileCount);
 											LTKCL_PrintVerboseStatus(m_csStatus);
 										}
 									}
@@ -2024,7 +2072,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									}
 								}
 
-								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFile[i], i + 1, m_DataFileCount);
+								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFile[i].c_str(), i + 1, m_DataFileCount);
 								LTKCL_PrintVerboseStatus(m_csStatus);
 
 								// @#$%^& using index files slows things down by a factor of 3!!
@@ -3010,7 +3058,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3062,7 +3110,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															Percentile[20]);
 														
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3089,7 +3137,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														y);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(FuelOutputFile, "\n");
@@ -3121,7 +3169,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													}
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(StrataOutputFile, "\n");
@@ -3286,7 +3334,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3335,7 +3383,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															Percentile[20]);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3362,7 +3410,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														y);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(FuelOutputFile, "\n");
@@ -3394,7 +3442,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													}
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(StrataOutputFile, "\n");
@@ -3503,8 +3551,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 													// do min/max for intensity
 													if (m_StatParameter == INTENSITY_VALUE) {
-														GridMin = min(GridMin, Points[CurrentPointNumber].Value);
-														GridMax = max(GridMax, Points[CurrentPointNumber].Value);
+														GridMin = min<double>(GridMin, Points[CurrentPointNumber].Value);
+														GridMax = max<double>(GridMax, Points[CurrentPointNumber].Value);
 													}
 												}
 
@@ -3948,8 +3996,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 																		}
 
 																		// do min/max
-																		ElevStrataMin[k] = min(ElevStrataMin[k], Points[l].Elevation);
-																		ElevStrataMax[k] = max(ElevStrataMax[k], Points[l].Elevation);
+																		ElevStrataMin[k] = min<double>(ElevStrataMin[k], Points[l].Elevation);
+																		ElevStrataMax[k] = max<double>(ElevStrataMax[k], Points[l].Elevation);
 
 																		break;
 																	}
@@ -4055,8 +4103,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 																		}
 
 																		// do min/max
-																		IntStrataMin[k] = min(IntStrataMin[k], Points[l].Value);
-																		IntStrataMax[k] = max(IntStrataMax[k], Points[l].Value);
+																		IntStrataMin[k] = min<double>(IntStrataMin[k], Points[l].Value);
+																		IntStrataMax[k] = max<double>(IntStrataMax[k], Points[l].Value);
 
 																		break;
 																	}
@@ -4413,7 +4461,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -4463,7 +4511,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														Percentile[20]);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -4491,7 +4539,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 													y);
 											
 												if (m_UseGlobalIdentifier) {
-													fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(FuelOutputFile, "\n");
@@ -4533,7 +4581,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												}
 
 												if (m_UseGlobalIdentifier) {
-													fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(StrataOutputFile, "\n");
@@ -4708,7 +4756,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 //										else if (m_UseFirstReturnsForDensity)
 //											Ft = Ft + _T("_first_returns_density_only");
 										else
-											Ft = Ft + _T("_all_returns_all_metrics");
+											Ft += Ft + _T("_all_returns_all_metrics");
 
 										if (m_StatParameter == ELEVATION_VALUE)
 											Ft = Ft + _T("_elevation_");
@@ -4735,8 +4783,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											gfs.SetTitle(gFt);
 											if (m_SaveASCIIRaster)
 												PtDensity.write_to_raster_file(gfs.GetFullSpec(), 6, xMin, yMin, m_CellSize, -9999.0, MinColOutput, MinRowOutput, MaxColOutput, MaxRowOutput);
-											else
-												PtDensity.write_to_PlansDTM_file(gfs.GetFullSpec(), xMin, yMin, m_CellSize, MinColOutput, MinRowOutput, MaxColOutput, MaxRowOutput);
+									else
+														PtDensity.write_to_PlansDTM_file(gfs.GetFullSpec(), xMin, yMin, m_CellSize, MinColOutput, MinRowOutput, MaxColOutput, MaxRowOutput);
 			
 											LTKCL_ReportProductFile(gfs.GetFullSpec(), "Total returns per unit area");
 										}
@@ -5441,7 +5489,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												if (!CellInBuffer) {
 													fprintf(OutputFile, "%i,%i,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf", j - CellOffsetRows, i - CellOffsetCols, x, y, -9999.0, -9999.0, -9999.0, -9999.0, -9999.0, -9999.0);
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -5519,7 +5567,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												// output topo metrics
 												fprintf(OutputFile, "%i,%i,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf", j - CellOffsetRows, i - CellOffsetCols, x, y, surfacevalue, SlopeDegrees, AspectDegrees, ProfC, PlanC, SRI);
 												if (m_UseGlobalIdentifier) {
-													fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(OutputFile, "\n");
@@ -5567,7 +5615,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								else {
 									if (!m_NoCSVFile) {
 										CString csTemp;
-										csTemp.Format("Couldn't open file for topo metrics: %s", fs.GetFullSpec());
+										csTemp.Format("Couldn't open file for topo metrics: %s", fs.GetFullSpec().c_str());
 										LTKCL_PrintStatus(csTemp);
 										m_nRetCode = 7;
 									}
