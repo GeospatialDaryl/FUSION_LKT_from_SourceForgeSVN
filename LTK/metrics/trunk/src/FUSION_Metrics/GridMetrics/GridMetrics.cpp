@@ -146,7 +146,6 @@
 //	Added new metrics: Canopy relief ratio, height strata (elevation and intensity metrics), MAD_MED, MAD_MODE, #modes
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
-#include "stdafx.h"
 #include <time.h>
 #include "../../fusion/versionID.h"
 #include "plansdtm.h"

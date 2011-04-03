@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 project (GridMetrics CXX)
 
-set (SRC_FILES Cloudmetrics.cpp)
-set (HDR_FILES StdAfx.h)
+set (SRC_FILES GridMetrics.cpp)
 
 if (WIN32)
   #  The FindBoost module looks for dynamic libraries by default.  But Boost's
@@ -97,7 +96,7 @@ if (MSVC)
 endif()
 
 set (PROGRAM_NAME Gridmetrics)
-add_executable (${PROGRAM_NAME} ${SRC_FILES} ${HDR_FILES} ${UTIL_SRCS})
+add_executable (${PROGRAM_NAME} ${SRC_FILES} ${UTIL_SRCS})
 target_link_libraries (${PROGRAM_NAME}
                        ${Boost_FILESYSTEM_LIBRARY}
                        ${Boost_SYSTEM_LIBRARY}
