@@ -68,6 +68,8 @@ set (UTIL_FILENAMES argslib.cpp
                     DataFile.h
                     DataIndex.cpp
                     DataIndex.h
+                    DeleteFile.cpp
+                    DeleteFile.h
                     filespec.cpp
                     filespec.h
                     getApplicationPath.cpp
