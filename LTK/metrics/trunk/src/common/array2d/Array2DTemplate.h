@@ -1,6 +1,10 @@
 // This is core/vbl/vbl_array_2d.h
 #ifndef vbl_array_2d_h_
 #define vbl_array_2d_h_
+
+#include "../FUSION_util/vc6_to_std.h"
+#include "../FUSION_util/DeleteFile.h"
+
 //:
 // \file
 // \brief Contains class for a templated 2d array
