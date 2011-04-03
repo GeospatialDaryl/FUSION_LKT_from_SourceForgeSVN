@@ -5,6 +5,8 @@
 #if !defined(AFX_TERRAINSET_H__D3033F35_514A_4683_80E5_5F4F1391B3B0__INCLUDED_)
 #define AFX_TERRAINSET_H__D3033F35_514A_4683_80E5_5F4F1391B3B0__INCLUDED_
 
+#include <vector>
+
 #include "plansdtm.h"
 #include "datafile.h"
 
@@ -49,7 +51,7 @@ private:
 	PlansDTM* m_ModelHeaderList;
 	BOOL* m_ModelElevLoaded;
 	BOOL* m_ModelUsedForInternalModel;
-	CStringArray m_FileList;
+	std::vector<CString> m_FileList;
 	int ExpandFileSpecToList(CString FileSpec);
 	int CountFilesMatchingSpec(LPCSTR FileSpec);
 	BOOL RectanglesIntersect(double MinX1, double MinY1, double MaxX1, double MaxY1, double MinX2, double MinY2, double MaxX2, double MaxY2);
