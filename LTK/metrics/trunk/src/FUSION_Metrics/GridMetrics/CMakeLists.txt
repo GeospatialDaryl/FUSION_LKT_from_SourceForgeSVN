@@ -85,6 +85,12 @@ endforeach()
 source_group("FUSION util" FILES ${UTIL_SRCS})
 
 
+# The directory with template for 2-dimensional arrays
+set (ARRAY2D_DIR ${COMMON_DIR}/array2d)
+include_directories (${ARRAY2D_DIR})
+set (ARRAY2D_HDR ${ARRAY2D_DIR}/Array2DTemplate.h)
+source_group("2D Array" FILES ${ARRAY2D_HDR})
+
 #  The directory with the code shared by the LTK programs
 set (LTK_DIR ${COMMON_DIR}/LTK)
 
@@ -96,7 +102,7 @@ if (MSVC)
 endif()
 
 set (PROGRAM_NAME Gridmetrics)
-add_executable (${PROGRAM_NAME} ${SRC_FILES} ${UTIL_SRCS})
+add_executable (${PROGRAM_NAME} ${SRC_FILES} ${UTIL_SRCS} ${ARRAY2D_HDR})
 target_link_libraries (${PROGRAM_NAME}
                        ${Boost_FILESYSTEM_LIBRARY}
                        ${Boost_SYSTEM_LIBRARY}

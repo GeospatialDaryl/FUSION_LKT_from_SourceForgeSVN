@@ -154,7 +154,7 @@
 #include "dataindex.h"
 #include "filespec.h"
 #include "argslib.h"
-#include "array2dtemplate.h"
+#include "Array2DTemplate.h"
 #include "TerrainSet.h"
 #include "command_line_core_functions.h"
 #include <float.h>
