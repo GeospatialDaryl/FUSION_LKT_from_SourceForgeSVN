@@ -147,9 +147,8 @@
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
 #include "stdafx.h"
-#include "gridmetrics.h"
 #include <time.h>
-#include "..\..\fusion\versionID.h"
+#include "../../fusion/versionID.h"
 #include "plansdtm.h"
 //#include "image.h"
 #include "lidardata.h"
