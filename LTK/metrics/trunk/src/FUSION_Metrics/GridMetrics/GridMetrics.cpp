@@ -1263,6 +1263,9 @@ int ParseCommandLine()
 		}
 	}
 	else {
+    // collect all the data files listed on command line (wildcard expansion
+    // now handled by command shell).
+/*
 		// see if first data file expands to multiple files
 		CFileFind finder;
 		int FileCount = 0;
@@ -1282,6 +1285,7 @@ int ParseCommandLine()
 			}
 		}
 		else {
+*/
 			m_DataFile.Add(m_FirstDataFile);
 			if (m_UseGround) {
 				for (i = m_clp.FirstNonSwitchIndex() + 5; i < m_clp.ParamCount(); i ++) {
@@ -1295,7 +1299,7 @@ int ParseCommandLine()
 					m_DataFileCount ++;
 				}
 			}
-		}
+//		}
 	}
 
 	// see if ground file given on command line expands into more than 1 file
