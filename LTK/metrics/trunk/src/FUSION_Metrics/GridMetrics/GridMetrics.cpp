@@ -314,7 +314,7 @@ char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground d
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
 CArray<CString, CString> m_DataFile;
-CArray<CString, CString> m_GroundFiles;
+//CArray<CString, CString> m_GroundFiles;
 int m_GroundFileCount;
 BOOL m_GroundFromDisk;
 CString m_FirstDataFile;
