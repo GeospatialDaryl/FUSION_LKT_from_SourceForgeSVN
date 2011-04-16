@@ -470,10 +470,10 @@ BOOL CTerrainSet::GetOverallExtent(double &MinX, double &MinY, double &MaxX, dou
 
 		// go through models and get overall extent
 		for (int i = 1; i < m_FileCount; i ++) {
-			MinX = min(MinX, m_ModelHeaderList[i].OriginX());
-			MinY = min(MinY, m_ModelHeaderList[i].OriginY());
-			MaxX = max(MaxX, m_ModelHeaderList[i].OriginX() + m_ModelHeaderList[i].Width());
-			MaxY = max(MaxY, m_ModelHeaderList[i].OriginY() + m_ModelHeaderList[i].Height());
+			MinX = std::min(MinX, m_ModelHeaderList[i].OriginX());
+			MinY = std::min(MinY, m_ModelHeaderList[i].OriginY());
+			MaxX = std::max(MaxX, m_ModelHeaderList[i].OriginX() + m_ModelHeaderList[i].Width());
+			MaxY = std::max(MaxY, m_ModelHeaderList[i].OriginY() + m_ModelHeaderList[i].Height());
 		}
 
 		return(TRUE);
