@@ -306,7 +306,7 @@ int compareelevation(const void *arg1, const void *arg2)
 /////////////////////////////////////////////////////////////////////////////
 // The one and only application object
 
-CWinApp theApp;
+//CWinApp theApp;
 
 using namespace std;
 
@@ -1425,7 +1425,7 @@ int ParseCommandLine()
 	return(nRetCode);
 }
 
-int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+int main(int argc, char* argv[])
 {
 	float Fraction;
 	int WholePart;
