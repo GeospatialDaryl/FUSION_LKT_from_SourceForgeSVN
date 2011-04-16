@@ -147,6 +147,8 @@
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
 #include <vector>
+#include <boost/algorithm/string.hpp>
+#include <boost/foreach.hpp>
 
 #include <time.h>
 #include "../../fusion/versionID.h"
@@ -888,9 +890,11 @@ int ParseCommandLine()
 		CString temp = m_clp.GetSwitchStr("strata", "");
 		if (!temp.IsEmpty()) {
 			m_HeightStrataCount = 0;
-			char* c = strtok(temp.LockBuffer(), ",");
-			while (c) {
-				m_HeightStrata[m_HeightStrataCount] = atof(c);
+			std::string switchValue(temp);
+			std::vector<std::string> heights;
+			boost::algorithm::split(heights, switchValue, boost::algorithm::is_any_of(","));
+			BOOST_FOREACH(const std::string & height, heights) {
+				m_HeightStrata[m_HeightStrataCount] = atof(height.c_str());
 				m_HeightStrataCount ++;
 
 				// check number of strata
@@ -901,9 +905,7 @@ int ParseCommandLine()
 					// need break if we add a return variable
 //					break;
 				}
-				c = strtok(NULL, ",");
 			}
-			temp.ReleaseBuffer();
 
 			// add a final strata to define upper bound
 			m_HeightStrata[m_HeightStrataCount] = DBL_MAX;
@@ -928,9 +930,11 @@ int ParseCommandLine()
 		CString temp = m_clp.GetSwitchStr("intstrata", "");
 		if (!temp.IsEmpty()) {
 			m_HeightStrataIntensityCount = 0;
-			char* c = strtok(temp.LockBuffer(), ",");
-			while (c) {
-				m_HeightStrataIntensity[m_HeightStrataIntensityCount] = atof(c);
+			std::string switchValue(temp);
+			std::vector<std::string> heights;
+			boost::algorithm::split(heights, switchValue, boost::algorithm::is_any_of(","));
+			BOOST_FOREACH(const std::string & height, heights) {
+				m_HeightStrataIntensity[m_HeightStrataIntensityCount] = atof(height.c_str());
 				m_HeightStrataIntensityCount ++;
 				
 				if (m_HeightStrataIntensityCount >= MAX_NUMBER_OF_STRATA) {
@@ -940,9 +944,7 @@ int ParseCommandLine()
 					// need break if we add a return variable
 //					break;
 				}
-				c = strtok(NULL, ",");
 			}
-			temp.ReleaseBuffer();
 		
 			// add a final strata to define upper bound
 			m_HeightStrataIntensity[m_HeightStrataIntensityCount] = DBL_MAX;
