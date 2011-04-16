@@ -160,8 +160,8 @@ BOOL CTerrainSet::CreateOverview()
 		if (m_FileCount) {
 			m_ModelHeaderList = new PlansDTM[m_FileCount];
 			if (m_ModelHeaderList) {
-				m_ModelElevLoaded = new int[m_FileCount];
-				m_ModelUsedForInternalModel = new int[m_FileCount];
+				m_ModelElevLoaded = new BOOL[m_FileCount];
+				m_ModelUsedForInternalModel = new BOOL[m_FileCount];
 
 				// read all model headers...DTMs will be set up for patch access but file is not left open
 				for (i = 0; i < m_FileCount; i ++) {
