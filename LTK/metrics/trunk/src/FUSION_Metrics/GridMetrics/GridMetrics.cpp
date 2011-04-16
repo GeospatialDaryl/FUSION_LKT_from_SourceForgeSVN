@@ -791,7 +791,7 @@ int PresentInteractiveDialog()
 {
 	if (m_RunInteractive) {
 		usage();
-		::MessageBox(NULL, "Interactive mode is not currently implemented", PROGRAM_NAME, MB_OK);
+		printf("\s%s - Interactive mode is not currently implemented\n", PROGRAM_NAME);
 		return(1);		// temp...needs to reflect success/failure in interactive mode or user pressing cancel
 	}
 	return(0);
