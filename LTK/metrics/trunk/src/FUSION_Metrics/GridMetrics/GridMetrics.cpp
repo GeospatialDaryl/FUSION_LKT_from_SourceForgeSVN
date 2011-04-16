@@ -3511,8 +3511,8 @@ int main(int argc, char* argv[])
 
 													// do min/max for intensity
 													if (m_StatParameter == INTENSITY_VALUE) {
-														GridMin = min(GridMin, Points[CurrentPointNumber].Value);
-														GridMax = max(GridMax, Points[CurrentPointNumber].Value);
+														GridMin = min<double>(GridMin, Points[CurrentPointNumber].Value);
+														GridMax = max<double>(GridMax, Points[CurrentPointNumber].Value);
 													}
 												}
 
@@ -3956,8 +3956,8 @@ int main(int argc, char* argv[])
 																		}
 
 																		// do min/max
-																		ElevStrataMin[k] = min(ElevStrataMin[k], Points[l].Elevation);
-																		ElevStrataMax[k] = max(ElevStrataMax[k], Points[l].Elevation);
+																		ElevStrataMin[k] = min<double>(ElevStrataMin[k], Points[l].Elevation);
+																		ElevStrataMax[k] = max<double>(ElevStrataMax[k], Points[l].Elevation);
 
 																		break;
 																	}
@@ -4063,8 +4063,8 @@ int main(int argc, char* argv[])
 																		}
 
 																		// do min/max
-																		IntStrataMin[k] = min(IntStrataMin[k], Points[l].Value);
-																		IntStrataMax[k] = max(IntStrataMax[k], Points[l].Value);
+																		IntStrataMin[k] = min<double>(IntStrataMin[k], Points[l].Value);
+																		IntStrataMax[k] = max<double>(IntStrataMax[k], Points[l].Value);
 
 																		break;
 																	}
