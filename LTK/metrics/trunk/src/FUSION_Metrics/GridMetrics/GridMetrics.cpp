@@ -146,6 +146,8 @@
 //	Added new metrics: Canopy relief ratio, height strata (elevation and intensity metrics), MAD_MED, MAD_MODE, #modes
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
+#include <vector>
+
 #include <time.h>
 #include "../../fusion/versionID.h"
 #include "plansdtm.h"
@@ -313,7 +315,7 @@ using namespace std;
 char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster strata intstrata kde";
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
-CArray<CString, CString> m_DataFile;
+std::vector<CString> m_DataFiles;
 //CArray<CString, CString> m_GroundFiles;
 int m_GroundFileCount;
 BOOL m_GroundFromDisk;
@@ -1249,7 +1251,7 @@ int ParseCommandLine()
 				while (lst.NewReadASCIILine(buf)) {
 					TempFS.SetFullSpec(buf);
 					if (TempFS.Exists()) {
-						m_DataFile.Add(TempFS.GetFullSpec());
+						m_DataFiles.push_back(TempFS.GetFullSpec());
 						m_DataFileCount ++;
 					}
 				}
@@ -1286,16 +1288,16 @@ int ParseCommandLine()
 		}
 		else {
 */
-			m_DataFile.Add(m_FirstDataFile);
+			m_DataFiles.push_back(m_FirstDataFile);
 			if (m_UseGround) {
 				for (i = m_clp.FirstNonSwitchIndex() + 5; i < m_clp.ParamCount(); i ++) {
-					m_DataFile.Add(CString(m_clp.ParamStr(i)));
+					m_DataFiles.push_back(CString(m_clp.ParamStr(i)));
 					m_DataFileCount ++;
 				}
 			}
 			else {
 				for (i = m_clp.FirstNonSwitchIndex() + 4; i < m_clp.ParamCount(); i ++) {
-					m_DataFile.Add(CString(m_clp.ParamStr(i)));
+					m_DataFiles.push_back(CString(m_clp.ParamStr(i)));
 					m_DataFileCount ++;
 				}
 			}
@@ -1479,9 +1481,9 @@ int main(int argc, char* argv[])
 			if (!m_nRetCode) {
 				// check data files to make sure we can open them
 				for (i = 0; i < m_DataFileCount; i ++) {
-					ldat.Open(m_DataFile[i]);
+					ldat.Open(m_DataFiles[i]);
 					if (!ldat.IsValid()) {
-						m_csStatus.Format("Can't open data file: %s", m_DataFile[i]);
+						m_csStatus.Format("Can't open data file: %s", m_DataFiles[i]);
 						LTKCL_PrintStatus(m_csStatus);
 						m_nRetCode = 2;
 					}
@@ -1604,7 +1606,7 @@ int main(int argc, char* argv[])
 						// using the extent for the file (if indexed or LAS)
 						if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent) {
 // modified 6/9/2008		if (Index.Open(m_DataFile[i]) && !m_UserGrid && !m_UserGridXY) {		// need to get height if normalizing to ground
-							if (Index.Open(m_DataFile[i])) {		// need to get height if normalizing to ground
+							if (Index.Open(m_DataFiles[i])) {		// need to get height if normalizing to ground
 								// compare the extent with the grid area...if they overlap, read each point and test
 								if (RectanglesIntersect(Index.m_Header.MinX, Index.m_Header.MinY, Index.m_Header.MaxX, Index.m_Header.MaxY, Custom_xMin, Custom_yMin, Custom_xMax, Custom_yMax)) {
 //								if ((Index.m_Header.MinX < Custom_xMin && Index.m_Header.MaxX >= Custom_xMin) ||
@@ -1621,7 +1623,7 @@ int main(int argc, char* argv[])
 								}
 							}
 
-							ldat.Open(m_DataFile[i]);
+							ldat.Open(m_DataFiles[i]);
 							if (ldat.IsValid()) {
 								FilePointCount = 0;
 
@@ -1689,7 +1691,7 @@ int main(int argc, char* argv[])
 						}
 						else {
 							if (m_IncludeSpecificClasses && m_NumberOfClassCodes > 0) {
-								ldat.Open(m_DataFile[i]);
+								ldat.Open(m_DataFiles[i]);
 								if (ldat.IsValid()) {
 									// see if file is LAS format
 									if (ldat.GetFileFormat() == LASDATA) {
@@ -1711,7 +1713,7 @@ int main(int argc, char* argv[])
 									}
 									ldat.Close();
 
-									m_csStatus.Format("   %s: %i points", m_DataFile[i], FilePointCount);
+									m_csStatus.Format("   %s: %i points", m_DataFiles[i], FilePointCount);
 									LTKCL_PrintStatus(m_csStatus);
 
 									continue;
@@ -1719,7 +1721,7 @@ int main(int argc, char* argv[])
 							}
 
 							// the metrics are being computed for the extent of the data
-							if (Index.Open(m_DataFile[i])) {		// need to get height if normalizing to ground
+							if (Index.Open(m_DataFiles[i])) {		// need to get height if normalizing to ground
 								xMin = min(Index.m_Header.MinX, xMin);
 								yMin = min(Index.m_Header.MinY, yMin);
 		//						zMin = min(Index.m_Header.MinZ, zMin);
@@ -1733,7 +1735,7 @@ int main(int argc, char* argv[])
 								Index.Close();
 							}
 							else {
-								ldat.Open(m_DataFile[i]);
+								ldat.Open(m_DataFiles[i]);
 								if (ldat.IsValid()) {
 									FilePointCount = 0;
 
@@ -1772,9 +1774,9 @@ int main(int argc, char* argv[])
 						}
 						// report total number of points in each file
 						if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent)
-							m_csStatus.Format("   %s: %i points within grid area", m_DataFile[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points within grid area", m_DataFiles[i], FilePointCount);
 						else
-							m_csStatus.Format("   %s: %i points", m_DataFile[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points", m_DataFiles[i], FilePointCount);
 						LTKCL_PrintStatus(m_csStatus);
 					}
 
@@ -2003,7 +2005,7 @@ int main(int argc, char* argv[])
 
 								// check the data extent against the analysis area...only read returns when we have to
 								if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent) {
-									if (Index.Open(m_DataFile[i])) {		// need to get height if normalizing to ground
+									if (Index.Open(m_DataFiles[i])) {		// need to get height if normalizing to ground
 										// compare the extent with the grid area...if they overlap, read each point and test
 										if (RectanglesIntersect(Index.m_Header.MinX, Index.m_Header.MinY, Index.m_Header.MaxX, Index.m_Header.MaxY, xMin, yMin, xMax, yMax)) {
 											Index.Close();
@@ -2016,7 +2018,7 @@ int main(int argc, char* argv[])
 									}
 								}
 
-								ldat.Open(m_DataFile[i]);
+								ldat.Open(m_DataFiles[i]);
 
 								if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent) {
 									if (ldat.GetFileFormat() == LASDATA) {		// && !m_UseGround if you need min/max Z
@@ -2028,7 +2030,7 @@ int main(int argc, char* argv[])
 									}
 								}
 
-								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFile[i], i + 1, m_DataFileCount);
+								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFiles[i], i + 1, m_DataFileCount);
 								LTKCL_PrintVerboseStatus(m_csStatus);
 
 								// @#$%^& using index files slows things down by a factor of 3!!
