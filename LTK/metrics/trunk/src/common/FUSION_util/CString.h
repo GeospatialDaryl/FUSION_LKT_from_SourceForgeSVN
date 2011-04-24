@@ -115,4 +115,10 @@ class CString
     static char buffer[];  // for Format() method -- not thread safe
 };
 
+//-----------------------------------------------------------------------------
+
+// auxiliary operators
+
+CString operator+(const CString & str1, const char * str2);
+
 #endif
