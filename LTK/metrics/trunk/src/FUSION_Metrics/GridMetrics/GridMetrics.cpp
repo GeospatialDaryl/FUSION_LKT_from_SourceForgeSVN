@@ -2495,7 +2495,7 @@ int main(int argc, char* argv[])
 									ElevStrataM3[k] = 0.0;
 									ElevStrataM4[k] = 0.0;
 									for (j = 0; j < 10; j ++)
-										ElevStrataCountReturn[k][j];
+										ElevStrataCountReturn[k][j] = 0;
 
 									IntStrataCount[k] = 0;
 									IntStrataVariance[k] = 0.0;
@@ -2510,7 +2510,7 @@ int main(int argc, char* argv[])
 									IntStrataM3[k] = 0.0;
 									IntStrataM4[k] = 0.0;
 									for (j = 0; j < 10; j ++)
-										IntStrataCountReturn[k][j];
+										IntStrataCountReturn[k][j] = 0;
 								}
 
 								// set up loop to compute the intensity metrics, then the elevation metrics
@@ -3902,7 +3902,7 @@ int main(int argc, char* argv[])
 															ElevStrataM3[k] = 0.0;
 															ElevStrataM4[k] = 0.0;
 															for (m = 0; m < 10; m ++)
-																ElevStrataCountReturn[k][m];
+																ElevStrataCountReturn[k][m] = 0;
 
 															IntStrataCount[k] = 0;
 															IntStrataVariance[k] = 0.0;
@@ -3917,7 +3917,7 @@ int main(int argc, char* argv[])
 															IntStrataM3[k] = 0.0;
 															IntStrataM4[k] = 0.0;
 															for (m = 0; m < 10; m ++)
-																IntStrataCountReturn[k][m];
+																IntStrataCountReturn[k][m] = 0;
 														}
 
 														// resort cell data by elevation to do strata...for INTENSITY_VALUE data are 
