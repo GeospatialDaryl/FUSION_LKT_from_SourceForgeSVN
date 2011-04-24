@@ -1873,8 +1873,8 @@ int main(int argc, char* argv[])
 							// no adjustment for buffer needed...extent of area stored in final output
 							// will be adjusted to an area smaller than the data extent
 						}
-						double width = (xMax - xMin);
-						double height = (yMax - yMin);
+						// UNUSED // double width = (xMax - xMin);
+						// UNUSED // double height = (yMax - yMin);
 
 						// changed 4/2/2008 to add 1/2 the cell size to the extent...
 						// the net result is to round up the number of rows & columns
