@@ -217,7 +217,7 @@ BOOL PlansDTM::IsValid(void)
 BOOL PlansDTM::OpenAndRead(LPCSTR filename)
 {
 	// open model, read header, read data
-	FILE		*modelfile = NULL;
+	// UNUSED // FILE		*modelfile = NULL;
 	long		i;
 
 	if (Valid)
@@ -1637,7 +1637,7 @@ void PlansDTM::MedianFilter(int FilterSize, BOOL PreserveLocalPeaks, int PeakRul
 	double newelev;
 	int FilterHalfSize = FilterSize / 2;
 	BOOL cflag;
-	double slopetest = Header.point_spacing * 2.5;
+	// UNUSED // double slopetest = Header.point_spacing * 2.5;
 
 	// filter window must be odd
 	if (FilterSize % 2 == 0)
