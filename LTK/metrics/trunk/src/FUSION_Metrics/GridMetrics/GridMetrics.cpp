@@ -152,6 +152,7 @@
 
 #include <time.h>
 #include "../../fusion/versionID.h"
+#include "sigar.h"
 #include "plansdtm.h"
 //#include "image.h"
 #include "lidardata.h"
@@ -1895,12 +1896,24 @@ int main(int argc, char* argv[])
 						// be an even multiple of the cell size
 
 						// get amount of available memory
+/*
 						MEMORYSTATUS stat;
 						GlobalMemoryStatus(&stat);
+*/
 						PointRecord* Points = NULL;
 
 						// check available memory against number of points
-						if (stat.dwAvailPhys / 16 > PointCount + 10000) {
+						sigar_t *sigar;
+						sigar_mem_t mem_info;
+
+						sigar_open(&sigar);
+						int status = sigar_mem_get(sigar, &mem_info);
+						if (status != SIGAR_OK)
+							mem_info.actual_free = 0;
+						sigar_close(sigar);
+
+						if (mem_info.actual_free / 16 > (unsigned)(PointCount + 10000)) {
+//						if (stat.dwAvailPhys / 16 > PointCount + 10000) {
 							// allocate memory for a list of points
 							TRY {
 								Points = new PointRecord[PointCount];
