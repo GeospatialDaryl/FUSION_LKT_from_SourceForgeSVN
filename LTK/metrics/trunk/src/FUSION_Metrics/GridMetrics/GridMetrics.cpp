@@ -498,7 +498,10 @@ void usage()
 	printf("\nSyntax: %s [switches] groundfile heightbreak cellsize outputfile\n", PROGRAM_NAME);
 	printf("              datafile1 datafile2 ... datafile10\n");
 	printf(" groundfile   Name for ground surface model (PLANS DTM with .dtm extension).\n");
-	printf("              May be wildcard or text list file (extension .txt only)\n");
+	printf("              May be text list file (extension .txt only)\n");
+		// Wildcards are no longer accepted for groundfile because
+		// 1) the shell now handles wildcard expansion instead of the program, and
+		// 2) the program's parameter-parsing code is designed for one groundfile parameter.
 	printf(" heightbreak  Height break for cover calculation\n");
 	printf(" cellsize     Desired grid cell size in the same units as LIDAR data\n");
 	printf(" outputfile   Base name for output file. Metrics are stored in CSV format with\n");

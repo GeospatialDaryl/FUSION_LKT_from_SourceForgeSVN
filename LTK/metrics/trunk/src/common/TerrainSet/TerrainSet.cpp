@@ -19,6 +19,8 @@
 //	interpolating a new grid or other "ordered" set of points. May slow things down when working with random point locations.
 //
 
+#include <boost/filesystem.hpp>
+
 #include <math.h>
 #include "TerrainSet.h"
 
@@ -78,11 +80,11 @@ int CTerrainSet::CountFilesMatchingSpec(LPCSTR FileSpec)
 	if (FileSpec[0] == '\0')
 		return(0);
 
-	CFileFind finder;
+	// Since GridMetrics no longer accepts wildcards for its groundfile (see the
+	// comment in the usage() function in GridMetrics.cpp), just check if the
+	// FileSpec refers to an existing file.
 	int FileCount = 0;
-	BOOL bWorking = finder.FindFile(FileSpec);
-	while (bWorking) {
-		bWorking = finder.FindNextFile();
+	if (boost::filesystem::exists(FileSpec)) {
 		FileCount ++;
 	}
 
@@ -96,6 +98,9 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 
 	if (Count) {
 		m_FileList.clear();
+/*
+//  Wildcards are no longer supported; see comment in CountFilesMatchingSpec above.
+
 		if (Count > 1 || (Count == 1 && FileSpec.FindOneOf("*?") >= 0)) {
 			// multiple files or a single match to a wild card specifier
 			CFileFind finder;
@@ -106,6 +111,7 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 			}
 		}
 		else {		// only 1 file matched FileSpec and no wildcard...might be list file or single model
+*/
 			// check for text file list...must have ".txt" extension
 			csTemp = FileSpec;
 			csTemp.MakeLower();
@@ -127,7 +133,7 @@ int CTerrainSet::ExpandFileSpecToList(CString FileSpec)
 				// only 1 file directly specified (no wild card characters)
 				m_FileList.push_back(FileSpec);
 			}
-		}
+//		}
 	}
 
 	return(Count);
