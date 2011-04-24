@@ -179,3 +179,14 @@ void CString::MakeLower()
 {
   boost::to_lower(str_);
 }
+
+//-----------------------------------------------------------------------------
+
+// auxiliary operators
+
+CString operator+(const CString & str1, const char * str2)
+{
+  CString result(str1);
+  result += str2;
+  return result;
+}
