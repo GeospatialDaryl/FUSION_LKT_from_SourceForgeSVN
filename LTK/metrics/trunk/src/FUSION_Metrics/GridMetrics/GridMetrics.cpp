@@ -970,7 +970,7 @@ int ParseCommandLine()
 		CString csOrigin = m_clp.GetSwitchStr("grid", "-9999.0,-9999.0,-9999.0,-9999.0");
 		sscanf(csOrigin, "%lf,%lf,%lf,%lf", &m_CustomOriginX, &m_CustomOriginY, &m_CustomGridWidth, &m_CustomGridHeight);
 		if (m_CustomOriginX == -9999.0 || m_CustomOriginY == -9999.0) {
-			csTemp.Format("Invalid grid switch parameters: (%s)", csOrigin);
+			csTemp.Format("Invalid grid switch parameters: (%s)", csOrigin.c_str());
 			LTKCL_PrintStatus(csTemp);
 			m_UserGrid = FALSE;
 			nRetCode = 5;
@@ -982,7 +982,7 @@ int ParseCommandLine()
 		CString csOrigin = m_clp.GetSwitchStr("gridxy", "-9999.0,-9999.0,-9999.0,-9999.0");
 		sscanf(csOrigin, "%lf,%lf,%lf,%lf", &m_CustomOriginX, &m_CustomOriginY, &m_CustomMaxX, &m_CustomMaxY);
 		if (m_CustomOriginX == -9999.0 || m_CustomOriginY == -9999.0) {
-			csTemp.Format("Invalid gridxy switch parameters: (%s)", csOrigin);
+			csTemp.Format("Invalid gridxy switch parameters: (%s)", csOrigin.c_str());
 			LTKCL_PrintStatus(csTemp);
 			m_UserGridXY = FALSE;
 			nRetCode = 6;
@@ -1015,7 +1015,7 @@ int ParseCommandLine()
 				m_CustomMaxY = tdtm.OriginY() + tdtm.Height();
 			}
 			else {
-				csTemp.Format("Could not open the .dtm file specified for alignment: %s", AlignmentModel);
+				csTemp.Format("Could not open the .dtm file specified for alignment: %s", AlignmentModel.c_str());
 				LTKCL_PrintStatus(csTemp);
 				m_ForceAlignment = FALSE;
 				m_ForceExtent = FALSE;
@@ -1260,7 +1260,7 @@ int ParseCommandLine()
 			}
 		}
 		else {
-			csTemp.Format("Can't open list file (doesn't exist): %s", m_FirstDataFile);
+			csTemp.Format("Can't open list file (doesn't exist): %s", m_FirstDataFile.c_str());
 			LTKCL_PrintStatus(csTemp);
 			nRetCode = 9;
 			m_DataFileCount = 0;
@@ -1486,7 +1486,7 @@ int main(int argc, char* argv[])
 				for (i = 0; i < m_DataFileCount; i ++) {
 					ldat.Open(m_DataFiles[i]);
 					if (!ldat.IsValid()) {
-						m_csStatus.Format("Can't open data file: %s", m_DataFiles[i]);
+						m_csStatus.Format("Can't open data file: %s", m_DataFiles[i].c_str());
 						LTKCL_PrintStatus(m_csStatus);
 						m_nRetCode = 2;
 					}
@@ -1496,7 +1496,7 @@ int main(int argc, char* argv[])
 
 				// check ground DTM
 				if (m_UseGround && !m_Terrain.IsValid()) {
-					m_csStatus.Format("Problems with the ground surface model(s): %s", m_GroundFileName);
+					m_csStatus.Format("Problems with the ground surface model(s): %s", m_GroundFileName.c_str());
 					LTKCL_PrintStatus(m_csStatus);
 
 					m_nRetCode = 3;
@@ -1505,7 +1505,7 @@ int main(int argc, char* argv[])
 				
 				// check canopy DTM
 				if (m_UseCanopy && !m_CanopyDTM.IsValid()) {
-					m_csStatus.Format("Can't open the canopy model: %s", m_CanopyFileName);
+					m_csStatus.Format("Can't open the canopy model: %s", m_CanopyFileName.c_str());
 					LTKCL_PrintStatus(m_csStatus);
 					m_nRetCode = 4;			// disable to allow processing without canopy
 				}
@@ -1716,7 +1716,7 @@ int main(int argc, char* argv[])
 									}
 									ldat.Close();
 
-									m_csStatus.Format("   %s: %i points", m_DataFiles[i], FilePointCount);
+									m_csStatus.Format("   %s: %i points", m_DataFiles[i].c_str(), FilePointCount);
 									LTKCL_PrintStatus(m_csStatus);
 
 									continue;
@@ -1777,9 +1777,9 @@ int main(int argc, char* argv[])
 						}
 						// report total number of points in each file
 						if (m_UserGrid || m_UserGridXY || m_ForceAlignment || m_ForceExtent)
-							m_csStatus.Format("   %s: %i points within grid area", m_DataFiles[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points within grid area", m_DataFiles[i].c_str(), FilePointCount);
 						else
-							m_csStatus.Format("   %s: %i points", m_DataFiles[i], FilePointCount);
+							m_csStatus.Format("   %s: %i points", m_DataFiles[i].c_str(), FilePointCount);
 						LTKCL_PrintStatus(m_csStatus);
 					}
 
@@ -1928,7 +1928,7 @@ int main(int argc, char* argv[])
 								LTKCL_PrintVerboseStatus(m_csStatus);
 								for (i = 0; i < m_Terrain.GetModelCount(); i ++) {
 									if (m_Terrain.AreModelElevationsInMemory(i)) {
-										m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i), i + 1, m_GroundFileCount);
+										m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i).c_str(), i + 1, m_GroundFileCount);
 										LTKCL_PrintVerboseStatus(m_csStatus);
 									}
 								}
@@ -1945,7 +1945,7 @@ int main(int argc, char* argv[])
 									LTKCL_PrintVerboseStatus(m_csStatus);
 									for (i = 0; i < m_Terrain.GetModelCount(); i ++) {
 										if (m_Terrain.WasModelUsedForInternalModel(i)) {
-											m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i), i + 1, m_GroundFileCount);
+											m_csStatus.Format("   %s (%i of %i)", m_Terrain.GetModelFileName(i).c_str(), i + 1, m_GroundFileCount);
 											LTKCL_PrintVerboseStatus(m_csStatus);
 										}
 									}
@@ -2033,7 +2033,7 @@ int main(int argc, char* argv[])
 									}
 								}
 
-								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFiles[i], i + 1, m_DataFileCount);
+								m_csStatus.Format("   Reading data from %s (file %i of %i)", m_DataFiles[i].c_str(), i + 1, m_DataFileCount);
 								LTKCL_PrintVerboseStatus(m_csStatus);
 
 								// @#$%^& using index files slows things down by a factor of 3!!
@@ -3019,7 +3019,7 @@ int main(int argc, char* argv[])
 															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3071,7 +3071,7 @@ int main(int argc, char* argv[])
 															Percentile[20]);
 														
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3098,7 +3098,7 @@ int main(int argc, char* argv[])
 														y);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(FuelOutputFile, "\n");
@@ -3130,7 +3130,7 @@ int main(int argc, char* argv[])
 													}
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(StrataOutputFile, "\n");
@@ -3295,7 +3295,7 @@ int main(int argc, char* argv[])
 															fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3344,7 +3344,7 @@ int main(int argc, char* argv[])
 															Percentile[20]);
 
 														if (m_UseGlobalIdentifier) {
-															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+															fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 														}
 														else {
 															fprintf(OutputFile, "\n");
@@ -3371,7 +3371,7 @@ int main(int argc, char* argv[])
 														y);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(FuelOutputFile, "\n");
@@ -3403,7 +3403,7 @@ int main(int argc, char* argv[])
 													}
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(StrataOutputFile, "\n");
@@ -4422,7 +4422,7 @@ int main(int argc, char* argv[])
 														fprintf(OutputFile, ",%i,%.4lf,%.4lf,%.4lf", KDE_ModeCount, KDE_MinMode, KDE_MaxMode, KDE_ModeRange);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -4472,7 +4472,7 @@ int main(int argc, char* argv[])
 														Percentile[20]);
 
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -4500,7 +4500,7 @@ int main(int argc, char* argv[])
 													y);
 											
 												if (m_UseGlobalIdentifier) {
-													fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(FuelOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(FuelOutputFile, "\n");
@@ -4542,7 +4542,7 @@ int main(int argc, char* argv[])
 												}
 
 												if (m_UseGlobalIdentifier) {
-													fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(StrataOutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(StrataOutputFile, "\n");
@@ -5450,7 +5450,7 @@ int main(int argc, char* argv[])
 												if (!CellInBuffer) {
 													fprintf(OutputFile, "%i,%i,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf", j - CellOffsetRows, i - CellOffsetCols, x, y, -9999.0, -9999.0, -9999.0, -9999.0, -9999.0, -9999.0);
 													if (m_UseGlobalIdentifier) {
-														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+														fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 													}
 													else {
 														fprintf(OutputFile, "\n");
@@ -5528,7 +5528,7 @@ int main(int argc, char* argv[])
 												// output topo metrics
 												fprintf(OutputFile, "%i,%i,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf,%.6lf", j - CellOffsetRows, i - CellOffsetCols, x, y, surfacevalue, SlopeDegrees, AspectDegrees, ProfC, PlanC, SRI);
 												if (m_UseGlobalIdentifier) {
-													fprintf(OutputFile, ",%s\n", m_GlobalIdentifier);
+													fprintf(OutputFile, ",%s\n", m_GlobalIdentifier.c_str());
 												}
 												else {
 													fprintf(OutputFile, "\n");
@@ -5576,7 +5576,7 @@ int main(int argc, char* argv[])
 								else {
 									if (!m_NoCSVFile) {
 										CString csTemp;
-										csTemp.Format("Couldn't open file for topo metrics: %s", fs.GetFullSpec());
+										csTemp.Format("Couldn't open file for topo metrics: %s", fs.GetFullSpec().c_str());
 										LTKCL_PrintStatus(csTemp);
 										m_nRetCode = 7;
 									}
