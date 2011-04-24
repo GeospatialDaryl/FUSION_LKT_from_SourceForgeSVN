@@ -992,7 +992,7 @@ int ParseCommandLine()
 	m_ForceAlignment = m_clp.Switch("align");
 	m_ForceExtent = m_clp.Switch("extent");
 	if (m_ForceAlignment && m_ForceExtent) {
-		csTemp.Format("You cannot use the /align and /extent switches at the same time");
+		csTemp = "You cannot use the /align and /extent switches at the same time";
 		LTKCL_PrintStatus(csTemp);
 		m_ForceAlignment = FALSE;
 		m_ForceExtent = FALSE;
