@@ -75,6 +75,9 @@ add_subdirectory (GridMetrics)
 # Packaging
 
 if (MSVC)
+  string (REPLACE ".lib" ".dll" SIGAR_LIBRARY_DLL "${SIGAR_LIBRARY}")
+  install (FILES "${SIGAR_LIBRARY_DLL}" DESTINATION bin)
+
   install (PROGRAMS package/win/set_path.bat DESTINATION bin)
  
   include (InstallRequiredSystemLibraries)
