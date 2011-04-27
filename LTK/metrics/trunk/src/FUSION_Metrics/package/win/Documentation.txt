@@ -1,6 +1,14 @@
 FUSION Metrics @VERSION_RELEASE@
 
 To run the metrics programs, start the FUSION Metrics Command Prompt, and
-then enter "Cloudmetrics" at the prompt.  To print information about the
-parameters and switches (also known as "options") that the program accepts
-on the command line, run Cloudmetrics without any arguments.
+then enter a program's name with its switches and parameters at the prompt.
+
+To print information about the parameters and switches (also known as
+"options") that a program accepts on the command line, run the program
+with just the "/help" switch:
+
+  Cloudmetrics /help
+  Gridmetrics /help
+
+Note: this version of Gridmetrics does NOT accept wildcards for the
+      groundfile parameter.
