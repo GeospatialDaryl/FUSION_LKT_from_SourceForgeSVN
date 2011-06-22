@@ -1,0 +1,535 @@
+<!--------------------------------------------------------------------------->
+<!--                           INTRODUCTION                                
+
+ The Code Project article submission template (HTML version)
+
+Using this template will help us post your article sooner. To use, just 
+follow the 3 easy steps below:
+ 
+     1. Fill in the article description details
+     2. Add links to your images and downloads
+     3. Include the main article text
+
+That's all there is to it! All formatting will be done by our submission
+scripts and style sheets. 
+
+-->
+<!--------------------------------------------------------------------------->
+<!--                        IGNORE THIS SECTION                            -->
+<html>
+
+<head>
+<title>The Code Project</title>
+<style>
+BODY, P, TD { font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt }
+H2,H3,H4,H5 { color: #ff9900; font-weight: bold; }
+H2 { font-size: 13pt; }
+H3 { font-size: 12pt; }
+H4 { font-size: 10pt; color: black; }
+PRE { BACKGROUND-COLOR: #FBEDBB; FONT-FAMILY: "Courier New", Courier, mono; WHITE-SPACE: pre; }
+CODE { COLOR: #990000; FONT-FAMILY: "Courier New", Courier, mono; }
+</style>
+<link rel="stylesheet" type="text/css" href="http://www.codeproject.com/styles/global.css">
+</head>
+
+<body bgcolor="#FFFFFF" color="#000000">
+<!--------------------------------------------------------------------------->
+<!-------------------------------     STEP 1      --------------------------->
+<!--  Fill in the details (CodeProject will reformat this section for you) -->
+
+<pre>
+Title:       Flexible Command Line Arguments Class
+Author:      Hector Santos
+Email:       codeproject@winserver.com
+Environment: VC++ 5.0-6.0, NT 4.0, Win95/98
+Keywords:    Command Line parameters, arguments, C/C++
+Level:       Intermediate
+Description: Class to handle command line parameters handling
+Section      MFC/C++
+SubSection   General
+</pre>
+<!-------------------------------     STEP 2      --------------------------->
+<!--  Include download and sample image information.                       -->
+
+<ul class="download">
+  <li><a href="argslib_src.zip">Download source - 14 Kb</a></li>
+</ul>
+
+<h2>Introduction</h2>
+
+<p><code>CCommandLineParameters</code> is a C/C++ class to help you process command line
+arguments. &nbsp; </p>
+
+<p>Yes, this is yet another &quot;Command Line&quot; processor.&nbsp; But in my opinion,
+the others I've seen don't have the flexibility or common usage standards often used
+command line tools switch options.&nbsp; <code>CCommandLineParameters</code> is designed
+to provide the following common/standard requirements: 
+
+<ul>
+  <li>Implicit or explicit help option.&nbsp; </li>
+  <li>Usage of both slash (&quot;/&quot;) or dash (&quot;-&quot;) switch characters</li>
+  <li>Support to add more switch characters</li>
+  <li>Switch case sensitivity support</li>
+  <li>Switch abbreviation support</li>
+  <li>Switch default value support</li>
+  <li>First Non Switch Parameter support</li>
+  <li>Support for Quoted parameters</li>
+</ul>
+
+<h2>Nomenclature</h2>
+
+<p>The following legend is used to describe the <code>CCommandLineParameters</code> class:</p>
+
+<blockquote>
+  <table border="1" width="100%">
+    <tr>
+      <td width="23%" valign="top"><strong>Command Line</strong></td>
+      <td width="77%" valign="top">The string passed to a program including the name of the
+      current program.<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Parameter Line</strong></td>
+      <td width="77%" valign="top">The string passed to a program excluding the name of the
+      current program.<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Arguments </strong></td>
+      <td width="77%" valign="top">The words in the parameter line each separated by space.
+      Argument 1 is the first word, argument 2 is the same word, etc.&nbsp; Argument 0 is the
+      name of the program.&nbsp; Please note that a double quote (&quot;) is used to combine
+      multiple words are one argument.<br>
+      <br>
+      example: President &quot;George Bush&quot; <p>The above is 2 arguments separate arguments,
+      president and George Bush.<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Parameters</strong></td>
+      <td width="77%" valign="top">Same as arguments<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Switch</strong></td>
+      <td width="77%" valign="top">An argument or parameter which begins with a switch
+      character. By default, the switch characters are dash (&quot;-&quot; or forward slash
+      (&quot;/&quot;)<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Abbreviated Switch</strong></td>
+      <td width="77%" valign="top">A switch that offers an abbreviation shortcut.<br>
+      <br>
+      Example: /s*end<br>
+      <br>
+      Allows for /send or /s to be used.<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>Non-Switch</strong></td>
+      <td width="77%" valign="top">An argument or parameter which DOES NOT begin with a switch
+      character.<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>switch value</strong></td>
+      <td width="77%" valign="top">The value assigned to a switch.</td>
+    </tr>
+    <tr>
+      <td width="23%" valign="top"><strong>argument or parameter index</strong></td>
+      <td width="77%" valign="top">The index of the argument on the command line.&nbsp; </td>
+    </tr>
+  </table>
+</blockquote>
+
+<p>The following is standard command line syntax information which will be helpful to you
+when you wish to document or describe the possible command line parameters for your
+application in a help display:</p>
+
+<blockquote>
+  <table border="1" width="100%">
+    <tr>
+      <td width="7%" valign="top" align="center"><strong>[]</strong></td>
+      <td width="93%" valign="top">When an parameter is surrounded with square brackets, this
+      typically means the parameter is optional.&nbsp; The parameter is not required for normal
+      operations of your program.<br>
+      <br>
+      example: program.exe [-p1]<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="7%" valign="top" align="center"><strong>&lt;&gt;</strong></td>
+      <td width="93%" valign="top">When an parameter is surrounded with angle brackets, this
+      typically means the parameter is required for normal operations of your program.<br>
+      <br>
+      example: program.exe &lt;filename&gt;<br>
+      </td>
+    </tr>
+    <tr>
+      <td width="7%" valign="top" align="center"><strong>|</strong></td>
+      <td width="93%" valign="top">The vertical bar means a choice between one parameter or
+      parameter value is acceptable.<br>
+      <br>
+      example: program.exe &lt;/device:com1|com2&gt;<br>
+      </td>
+    </tr>
+  </table>
+</blockquote>
+
+<p>For example, suppose an applications describes the following command line syntax:</p>
+
+<blockquote>
+  <p><font color="#0000FF">program.exe &lt;p1&gt; [-p2 &lt;v2&gt;] [[/p3 [v3]] [/p4]] [/p5
+  &lt;v5|w5&gt;]</font></p>
+</blockquote>
+
+<p>By following the standard syntax, you can easily understand what are the required and
+optional parameters for any application.</p>
+
+<p>In this example, p1 is a required parameter.&nbsp; The program will not run if it is
+not passed.&nbsp; The switches /p2, /p3, /p4 and /p5 are optional.&nbsp; If p2 is used,
+then v2 is required.&nbsp; If p3 is used, then V3 and /p4 are optional.&nbsp; However, the
+parameters v3 and /p4&nbsp; are only valid if /p3 is used in the first place.&nbsp; If /P5
+is used, the valid values are v5 or w5.&nbsp; </p>
+
+<p>This basic syntax is standard across many platforms.</p>
+
+<h2>Using the code</h2>
+
+<p>Using <code>CCommandLineParameters</code> is very simple. Simply instantiate or add an
+object like so to your source code:</p>
+
+<blockquote>
+  <pre>
+CCommandLineParameters clp;
+</pre>
+</blockquote>
+
+<p>The constructor offer an option to pass the switch characters which are by default,
+&quot;-/&quot;.&nbsp; If you wish to change the switch characters, you can do so by
+passing a string defining the characters to the constructor:</p>
+
+<blockquote>
+  <pre>
+CCommandLineParameters clp(&quot;-/\\&quot;);  <font color="#0000FF">/* dash, forward and back slash*/</font>
+</pre>
+</blockquote>
+
+<p>The basic and most common usage at this point is the Switch() function. It will cover
+80% of your needs.&nbsp; All other member functions are based on the Switch() function to
+give you other capabilities.</p>
+
+<p>Here is a fast &quot;get started&quot; example:</p>
+
+<p>Suppose our program &quot;sendfile.exe&quot; has a command line syntax:</p>
+
+<blockquote>
+  <p><font color="#0000FF">sendfile.exe &lt;filename&gt; &lt;-h*sot &lt;hostname&gt;&gt;
+  [-p*ort &lt;port#&gt;] </font></p>
+</blockquote>
+
+<p>then the following code will satisfy the syntax:</p>
+
+<blockquote>
+  <pre>
+void usage()
+{  
+  print(&quot;SendFile v1.0 Copyright (c) 2003 MyCompany.com\n&quot;);
+  print(&quot;usage: &lt;filename&gt; &lt;-h*sot &lt;hostname&gt;&gt; [-p*ort &lt;port#&gt;]\n&quot;);
+}
+
+void main()
+{
+
+  CCommandLineParameters clp;
+
+<font
+color="#0000FF">  // check for ? or if no parameters are passed
+</font>
+  if (clp.Help(TRUE)) {
+      usage();
+      return;
+  }
+
+  CString filename = clp.FirstNonSwitchStr();
+  CString hostname = clp.GetSwitchStr(&quot;h*ost&quot;);
+  DWORD deport = clp.GetSwitchInt(&quot;p*ort&quot;,80);
+
+<font
+color="#0000FF">  // Syntax checking for filename.
+  // First parameter must be a non-switch
+</font>
+  if (clp.FirstNonSwitchIndex() != 1) {
+      print(&quot;! syntax error: filename required\n&quot;);
+      usage();
+      return;
+  }
+
+<font
+color="#0000FF">  // Syntax checking for host name. 
+</font>
+  if (hostname.IsEmpty()) {
+      print(&quot;! syntax error: no host defined\n&quot;);
+      usage();
+      return;
+  }
+</pre>
+</blockquote>
+
+<h2>Reference Guide</h2>
+
+<p>The following are the members of the <code>CCommandLineParameters</code> class.</p>
+
+<hr>
+
+<p><strong><code>BOOL CheckHelp(const BOLO bNoSwitches = FALSE);</code></strong></p>
+
+<p>Return TRUE if parameter #1 is &quot;?&quot;, &quot;/?&quot; or &nbsp; &quot;-?&quot;.
+&nbsp; If you want to return TRUE when no parameters are passed, then call
+CheckHelp(TRUE);</p>
+
+<p>Example:</p>
+
+<blockquote>
+  <pre>
+CCommandLineParameters clp; 
+if (clp.CheckHelp(TRUE)) {
+   ShowHelp();
+   exit(1);
+}
+</pre>
+</blockquote>
+
+<hr>
+
+<p><strong><code>CString CommandLine();</code></strong></p>
+
+<p>Return the entire command line as a string, <em>including</em> the current program
+name.</p>
+
+<hr>
+
+<p><strong><code>CString ParamLine();</code></strong></p>
+
+<p>Return the entire command line as a string, <em>excluding</em> the current program
+name.</p>
+
+<hr>
+
+<p><strong><code>int ParamCount();</code></strong></p>
+
+<p>Return the total number of parameters or arguments on the command line, including
+switches. This will always be a minimum of 1, which includes the parameter #0 the name of
+the current application.</p>
+
+<hr>
+
+<p><strong><code>int SwitchCount();</code></strong></p>
+
+<p>Return the total number of switch options on the command line.</p>
+
+<hr>
+
+<p><strong><code>CString ParamStr(int index, const BOOL bGetAll = FALSE);</code></strong></p>
+
+<p>Return the string at parameter #index.&nbsp; If bGetall is TRUE, then return the string
+starting at parameter #index.</p>
+
+<p>Example:</p>
+
+<p>program.exe -email <a href="mailto:user@domain.com">user@domain.com</a> -subject
+NewsLetter #22 March 2 1999</p>
+
+<blockquote>
+  <pre>
+CCommandLineParameters clp; 
+CString email = clp.GetSwitchStr(&quot;-email&quot;);
+CString Subject = &quot;&quot;;
+int i = clp.Switch(&quot;subject&quot;);
+if (i &gt; 0) Subject = clp.ParamStr(i+1,TRUE);
+</pre>
+</blockquote>
+
+<hr>
+
+<p><strong><code>int ParamInt(int index);</code></strong></p>
+
+<p>Return the integer at parameter #index.</p>
+
+<hr>
+
+<p><strong><code>int FirstNonSwitchIndex();</code></strong></p>
+
+<p>Return the first parameter index where there the first non-switch parameter occurs.</p>
+
+<hr>
+
+<p><strong><code>CString FirstNonSwitchStr();</code></strong></p>
+
+<p>Return the string where there the first non-switch parameter occurs.&nbsp; See also <code>GetNonSwitchStr().</code></p>
+
+<hr>
+
+<p><strong><code>int Switch(const char *sz, const BOOL bCase = FALSE);</code></strong></p>
+
+<p>Switch() will return the parameter index if the switch exist. Return 0 if not found. <br>
+<br>
+The logic will allow for two types of switches:<br>
+<br>
+<font color="#0000FF">&nbsp;&nbsp;&nbsp; /switch value<br>
+&nbsp;&nbsp;&nbsp; /switch:value<br>
+</font><br>
+<em>DO NOT PASS THE COLON. IT IS AUTOMATICALLY CHECKED.</em> In other words, the following
+statements are the same:<br>
+<br>
+<font color="#0000FF">&nbsp;&nbsp;&nbsp; Switch(&quot;server&quot;);<br>
+&nbsp;&nbsp;&nbsp; Switch(&quot;-server&quot;);<br>
+&nbsp;&nbsp;&nbsp; Switch(&quot;/server&quot;);<br>
+</font><br>
+to handle the possible switch arguments and retrieval of switch values:<br>
+<br>
+<font color="#0000FF">&nbsp;&nbsp;&nbsp; /server:value<br>
+&nbsp;&nbsp;&nbsp; /server value<br>
+&nbsp;&nbsp;&nbsp; -server:value<br>
+&nbsp;&nbsp;&nbsp; -server value</font></p>
+
+<p>If you wish to have an abbreviation, insert a star &quot;*&quot; character in the
+switch at the position to indicate the number of abbreviated characters.&nbsp; If you wish
+to make it case sensitive, then pass bCase as TRUE.</p>
+
+<p>Example:&nbsp; </p>
+
+<blockquote>
+  <pre><font color="#0000FF">// check for /st or /start switch (not case sensitive) </font>
+BOOL bStart =&nbsp; clp.Switch(&quot;st*art&quot;);  <font
+color="#0000FF">
+</font></pre>
+</blockquote>
+
+<hr>
+
+<p><strong><code>CString GetSwitchStr(const char *sz, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const char *szDefault = &quot;&quot;, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const BOOL bCase = FALSE);</code></strong></p>
+
+<p><strong><code>int GetSwitchInt(const char *sz, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const int iDefault = -1, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const BOOL bCase = FALSE);</code></strong></p>
+
+<p>Return the string or integer for a given switch.&nbsp; Optionally pass the default
+value and if case sensitivity is to be used.</p>
+
+<p>These functions support two types of switch inputs:</p>
+
+<p>&nbsp;&nbsp;&nbsp; /switch:data<br>
+&nbsp;&nbsp;&nbsp; /switch data</p>
+
+<p>Either format is acceptable.</p>
+
+<p><strong><code>CString GetNonSwitchStr(const BOOL bBreakAtSwitch = TRUE, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+const BOOL bFirstOnly = FALSE);</code></strong></p>
+
+<p>Return the non switch string(s) depending on the values of bBreakAtSwitch and
+bFirstOnly.</p>
+
+<blockquote>
+  <table border="1" width="87%" height="102">
+    <tr>
+      <td width="20%" height="34" valign="top" bgcolor="#C0C0C0">bBreakAtSwitch</td>
+      <td width="17%" height="34" valign="top" bgcolor="#C0C0C0">bFirstOnly</td>
+      <td width="63%" height="34" valign="top" bgcolor="#C0C0C0">Result</td>
+    </tr>
+    <tr>
+      <td width="20%" height="30" valign="top">TRUE</td>
+      <td width="17%" height="30" valign="top">FALSE</td>
+      <td width="63%" height="30" valign="top">Default Behavior, returns all strings non-switch
+      strings starting at the first one found, stopping at the first switch found.</td>
+    </tr>
+    <tr>
+      <td width="20%" height="16" valign="top">TRUE</td>
+      <td width="17%" height="16" valign="top">TRUE</td>
+      <td width="63%" height="16" valign="top">returns the first non-switch string starting at
+      the first one found. </td>
+    </tr>
+    <tr>
+      <td width="20%" height="16" valign="top">FALSE</td>
+      <td width="17%" height="16" valign="top">TRUE</td>
+      <td width="63%" height="16" valign="top">returns the first non-switch string.</td>
+    </tr>
+    <tr>
+      <td width="20%" height="16" valign="top">FALSE</td>
+      <td width="17%" height="16" valign="top">FALSE</td>
+      <td width="63%" height="16" valign="top">returns all the non-switch strings.</td>
+    </tr>
+  </table>
+</blockquote>
+
+<p>Examples:</p>
+
+<p>program.exe&nbsp; file.txt -p:80 -H www.winserver.com<br>
+program.exe&nbsp; file.txt -p:80 -h 208.247.131.9</p>
+
+<blockquote>
+  <pre>int port     = clp.GetSwitchInt(&quot;port&quot;,25,1);
+CString host = clp.GetSwitchStr(&quot;HOST,&quot;&quot;,1,TRUE);
+CString ip   = clp.GetSwitchStr(&quot;host,&quot;&quot;,1,TRUE);
+CString file = clp.GetNonSwitchString(TRUE,TRUE);</pre>
+</blockquote>
+
+<p>In the above example, the switch for H is case sensitive. In one case (upper), it sets
+the host variable and in the the lower case option it sets the ip variable.</p>
+
+<p>program.exe file1.txt file2.txt file2.txt -output out.txt</p>
+
+<blockquote>
+  <pre>CString infiles = clp.GetNonSwitchString(TRUE,FALSE);
+CString outfile = clp.GetSwitchStr(&quot;-output&quot;,1)</pre>
+</blockquote>
+
+<h2>Points of Interest</h2>
+
+<p>This class works under console and GUI applications.&nbsp; A maximum of 100 parameters
+are possible.&nbsp; A possible enhancement is a syntax validation parser. This would help
+reduce coding of valid parameter syntax.</p>
+
+<h2>History</h2>
+
+<p>v1.0p&nbsp; March 5, 2003 - Initial Public Release </p>
+
+<h2>About the Author<br>
+</h2>
+
+<p>Hector Santos is the CTO of Santronics Software, Inc,&nbsp; developer of WINSERVER (<a
+href="http://www.santronics.com">Wildcat! Interactive Net Server</a>), an integrated
+Dialup and Intranet Hosting Client/Server System.&nbsp;&nbsp; Hector made his mark in the
+early Off-line Mail Reader/Door days in the Fidonet Mail/File Network with the 1984 debut
+of the Silver Xpress OffLine Mail Door/Reader System.&nbsp; Before the internet, we
+connected with low speed modems and to read or create mail ONLINE was expensive. Silver
+Xpress and other similar products made it feasible for millions of people world wide to
+enjoy &quot;BBSing&quot; by downloading mail for offline reading and replying.
+&nbsp;&nbsp; In 1992 with the internet coming and online communications becoming more
+feasible, products like SX were beginning to die.&nbsp; Hector's next product was Platinum
+Xpress, a P2P like system (we just didn't call it P2P) for the automatic exchange of Mail
+and Files in a world wide network of Zones, Nets, Nodes and Points users. This was called
+FidoNet and believe it not, there is nothing in the market today to compares to the P2P
+technology found in FidoNet.&nbsp; In 1996, with the success of PX,&nbsp; Hector purchased
+the rights to a brand new product line called WINSERVER, a product way ahead of its time.
+&nbsp; WINSERVER is now Santronics's flag ship product line, and it is a leading provider
+for private intranet solutions, especially in the the Medical, Health and
+Claims/Collection Industry where mail and files needs to be exchanges in a Intranet manner
+using all kinds of connection devices, including direct connect modems which still to this
+day, is probably still the most secured way of transferring data without internet sniffing
+worries.</p>
+
+<p>&nbsp;</p>
+
+<p><br>
+</p>
+</body>
+</html>
