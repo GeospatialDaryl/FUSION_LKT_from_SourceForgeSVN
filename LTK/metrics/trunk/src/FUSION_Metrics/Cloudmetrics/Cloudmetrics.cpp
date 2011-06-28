@@ -440,8 +440,8 @@ int ParseCommandLine()
 	InputFileCL = m_clp.ParamStr(m_clp.FirstNonSwitchIndex());
 	DataFS.SetFullSpec(InputFileCL);
 
-	int InputFileCount = m_clp.ParamCount() - m_clp.FirstNonSwitchIndex();
-	int LastInputFileIndex = m_clp.FirstNonSwitchIndex() + (InputFileCount - 1);
+	int LastInputFileIndex = m_clp.ParamCount() - 2; // 2nd to last (which is output file)
+	int InputFileCount = LastInputFileIndex - m_clp.FirstNonSwitchIndex() + 1;
 
 	// get output file specifier (last parameter)
 	OutputFileCL = m_clp.ParamStr(LastInputFileIndex + 1);
