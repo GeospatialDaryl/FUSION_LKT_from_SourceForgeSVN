@@ -91,6 +91,15 @@ BOOST_AUTO_TEST_CASE( CompareNoCase_greater )
 
 //-----------------------------------------------------------------------------
 
+BOOST_AUTO_TEST_CASE( compound_assignment )
+{
+  CString str("foo");
+  str += ".bar";
+  BOOST_REQUIRE_EQUAL( str, "foo.bar" );
+}
+
+//-----------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_CASE( TrimRight_oneSpace )
 {
   CString str("foo ");
