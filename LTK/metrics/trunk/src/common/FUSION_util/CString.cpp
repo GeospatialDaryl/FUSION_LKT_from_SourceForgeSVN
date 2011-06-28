@@ -145,7 +145,7 @@ CString & CString::operator=(const char * str)
 
 CString & CString::operator+=(const char * str)
 {
-  str_ = str;
+  str_ += str;
   return *this;
 }
 
