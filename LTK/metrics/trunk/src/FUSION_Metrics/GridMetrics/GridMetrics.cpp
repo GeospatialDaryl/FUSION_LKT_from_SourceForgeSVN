@@ -146,6 +146,21 @@
 //	Added new metrics: Canopy relief ratio, height strata (elevation and intensity metrics), MAD_MED, MAD_MODE, #modes
 //	from a kernal density function using the return heights, min/max mode values, min/max range
 //
+// 3/17/2011 GridMetrics V3.26
+//	Fixed initialization problem with P05 and P95 layers when using the /raster option. NODATA areas were getting the wrong value.
+//
+//	Added more logic to check for access to data files to help get around problems opening data files while other activities on the
+//	computer have locked the files or otherwise are preventing access. The new logic will try to open the data file set several times
+//	with a 10 second delay between each attempt. From experience, this should give programs a chance to finish what they are doing with
+//	the data file set. Most problems have been the result of virus scanning activities on Forest Service-imaged computers so others
+//	may not be having the problems with large processing jobs where a few tiles fail.
+//
+//	5/4/2011 GridMetrics V3.26
+//	Added proportion of returns in strata when using the /strata option.
+//
+//#include "stdafx.h"
+//#include "gridmetrics.h"
+
 #include <vector>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
@@ -172,7 +187,7 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 #define		PROGRAM_NAME		"GridMetrics"
-#define		PROGRAM_VERSION		3.25
+#define		PROGRAM_VERSION		3.26
 #define		MINIMUM_CL_PARAMS	5		// special since the groundfile parameter is semi-optional
 //			                              1         2         3         4         5         6         7         8         9         10
 //			                     1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -1443,6 +1458,12 @@ int main(int argc, char* argv[])
 	int Bins[NUMBEROFBINS];
 	int TheBin;
 	CLidarData ldat;
+	CFileSpec TempFS;
+	BOOL AllFilesExist;
+	int FileAccessAttemptCount;
+	BOOL FileAccessAttemptError;
+	time_t teststart;
+	time_t testtime;
 	int i, j, k, l, m, p;
 
 /*
@@ -1486,16 +1507,67 @@ int main(int argc, char* argv[])
 			LTKCL_VerifyCommandLine(ValidCommandLineSwitches);
 			
 			if (!m_nRetCode) {
+				// check data files to make sure they exist...this should have already been checked
+				AllFilesExist = TRUE;
+				for (i = 0; i < m_DataFileCount; i ++) {
+					TempFS.SetFullSpec(m_DataFiles[i]);
+					if (!TempFS.Exists()) {
+						m_csStatus.Format("Data file does not exist: %s", m_DataFiles[i].c_str());
+						LTKCL_PrintVerboseStatus(m_csStatus);
+						AllFilesExist = FALSE;
+					}
+				}
+
+#define		MAXFILEATTEMPTS		5
+#define		FILEACCESSDELAY		10
+
+				if (AllFilesExist) {
 				// check data files to make sure we can open them
+					FileAccessAttemptCount = 0;			// try up to 5 times with a delay between attempts
+					while (FileAccessAttemptCount < MAXFILEATTEMPTS) {
+						FileAccessAttemptError = FALSE;
 				for (i = 0; i < m_DataFileCount; i ++) {
 					ldat.Open(m_DataFiles[i]);
 					if (!ldat.IsValid()) {
 						m_csStatus.Format("Can't open data file: %s", m_DataFiles[i].c_str());
+								LTKCL_PrintVerboseStatus(m_csStatus);
+
+								// set flag
+								FileAccessAttemptError = TRUE;
+							}
+							else {
+								ldat.Close();
+							}
+						}
+
+						// if no error, jump out
+						if (!FileAccessAttemptError)
+							break;
+
+						// delay and try to access files again
+						time(&teststart);                 // Get time in seconds
+						while (TRUE) {
+							time(&testtime);                 // Get time in seconds
+							if (testtime - teststart >= FILEACCESSDELAY) {
+								m_csStatus.Format("File access time delay loop: %i of %i", FileAccessAttemptCount + 1, MAXFILEATTEMPTS);
 						LTKCL_PrintStatus(m_csStatus);
+
+								break;
+							}
+						}
+
+						FileAccessAttemptCount ++;
+					}
+
+					// set flag for error
+					if (FileAccessAttemptError) {
+						LTKCL_PrintStatus("Could not open some input data files");
 						m_nRetCode = 2;
 					}
-					else
-						ldat.Close();
+				}
+				else {
+					LTKCL_PrintStatus("Some input data files do not exist");
+					m_nRetCode = 2;
 				}
 
 				// check ground DTM
@@ -2553,6 +2625,7 @@ int main(int argc, char* argv[])
 									SkewnessGrid.fill(-1.0);
 									KurtosisGrid.fill(-1.0);
 									AADGrid.fill(-1.0);
+									P05Grid.fill(-1.0);
 									P10Grid.fill(-1.0);
 									P20Grid.fill(-1.0);
 									P25Grid.fill(-1.0);
@@ -2564,6 +2637,7 @@ int main(int argc, char* argv[])
 									P75Grid.fill(-1.0);
 									P80Grid.fill(-1.0);
 									P90Grid.fill(-1.0);
+									P95Grid.fill(-1.0);
 									IQGrid.fill(-1.0);
 									p90m10Grid.fill(-1.0);
 									DensityGrid.fill(-1.0);
@@ -2700,7 +2774,8 @@ int main(int argc, char* argv[])
 										if (m_DoHeightStrata) {
 											// print column labels...don't use last strata as it was "added" to provide upper bound
 											// first strata
-											fprintf(StrataOutputFile, ",Elev strata (below %.2lf) total return count,Elev strata (below %.2lf) min,Elev strata (below %.2lf) max,Elev strata (below %.2lf) mean,Elev strata (below %.2lf) mode,Elev strata (below %.2lf) median,Elev strata (below %.2lf) stddev,Elev strata (below %.2lf) CV,Elev strata (below %.2lf) skewness,Elev strata (below %.2lf) kurtosis", 
+											fprintf(StrataOutputFile, ",Elev strata (below %.2lf) total return count,Elev strata (below %.2lf) return proportion,Elev strata (below %.2lf) min,Elev strata (below %.2lf) max,Elev strata (below %.2lf) mean,Elev strata (below %.2lf) mode,Elev strata (below %.2lf) median,Elev strata (below %.2lf) stddev,Elev strata (below %.2lf) CV,Elev strata (below %.2lf) skewness,Elev strata (below %.2lf) kurtosis", 
+													m_HeightStrata[0], 
 													m_HeightStrata[0], 
 													m_HeightStrata[0], 
 													m_HeightStrata[0], 
@@ -2713,7 +2788,8 @@ int main(int argc, char* argv[])
 													m_HeightStrata[0]);
 
 											for (k = 1; k < m_HeightStrataCount - 1; k ++) {
-												fprintf(StrataOutputFile, ",Elev strata (%.2lf to %.2lf) total return count,Elev strata (%.2lf to %.2lf) min,Elev strata (%.2lf to %.2lf) max,Elev strata (%.2lf to %.2lf) mean,Elev strata (%.2lf to %.2lf) mode,Elev strata (%.2lf to %.2lf) median,Elev strata (%.2lf to %.2lf) stddev,Elev strata (%.2lf to %.2lf) CV,Elev strata (%.2lf to %.2lf) skewness,Elev strata (%.2lf to %.2lf) kurtosis", 
+												fprintf(StrataOutputFile, ",Elev strata (%.2lf to %.2lf) total return count,Elev strata (%.2lf to %.2lf) return proportion,Elev strata (%.2lf to %.2lf) min,Elev strata (%.2lf to %.2lf) max,Elev strata (%.2lf to %.2lf) mean,Elev strata (%.2lf to %.2lf) mode,Elev strata (%.2lf to %.2lf) median,Elev strata (%.2lf to %.2lf) stddev,Elev strata (%.2lf to %.2lf) CV,Elev strata (%.2lf to %.2lf) skewness,Elev strata (%.2lf to %.2lf) kurtosis", 
+														m_HeightStrata[k - 1], m_HeightStrata[k],
 														m_HeightStrata[k - 1], m_HeightStrata[k],
 														m_HeightStrata[k - 1], m_HeightStrata[k],
 														m_HeightStrata[k - 1], m_HeightStrata[k],
@@ -2727,7 +2803,8 @@ int main(int argc, char* argv[])
 											}
 
 											// last strata
-											fprintf(StrataOutputFile, ",Elev strata (above %.2lf) total return count,Elev strata (above %.2lf) min,Elev strata (above %.2lf) max,Elev strata (above %.2lf) mean,Elev strata (above %.2lf) mode,Elev strata (above %.2lf) median,Elev strata (above %.2lf) stddev,Elev strata (above %.2lf) CV,Elev strata (above %.2lf) skewness,Elev strata (above %.2lf) kurtosis", 
+											fprintf(StrataOutputFile, ",Elev strata (above %.2lf) total return count,Elev strata (above %.2lf) return proportion,Elev strata (above %.2lf) min,Elev strata (above %.2lf) max,Elev strata (above %.2lf) mean,Elev strata (above %.2lf) mode,Elev strata (above %.2lf) median,Elev strata (above %.2lf) stddev,Elev strata (above %.2lf) CV,Elev strata (above %.2lf) skewness,Elev strata (above %.2lf) kurtosis", 
+												m_HeightStrata[m_HeightStrataCount - 2], 
 												m_HeightStrata[m_HeightStrataCount - 2], 
 												m_HeightStrata[m_HeightStrataCount - 2], 
 												m_HeightStrata[m_HeightStrataCount - 2], 
@@ -2743,7 +2820,8 @@ int main(int argc, char* argv[])
 										if (m_DoHeightStrataIntensity) {
 											// print column labels...don't use last strata as it was "added" to provide upper bound
 											// first strata
-											fprintf(StrataOutputFile, ",Int strata (below %.2lf) total return count,Int strata (below %.2lf) min,Int strata (below %.2lf) max,Int strata (below %.2lf) mean,Int strata (below %.2lf) mode,Int strata (below %.2lf) median,Int strata (below %.2lf) stddev,Int strata (below %.2lf) CV,Int strata (below %.2lf) skewness,Int strata (below %.2lf) kurtosis", 
+											fprintf(StrataOutputFile, ",Int strata (below %.2lf) total return count,Int strata (below %.2lf) return proportion,Int strata (below %.2lf) min,Int strata (below %.2lf) max,Int strata (below %.2lf) mean,Int strata (below %.2lf) mode,Int strata (below %.2lf) median,Int strata (below %.2lf) stddev,Int strata (below %.2lf) CV,Int strata (below %.2lf) skewness,Int strata (below %.2lf) kurtosis", 
+													m_HeightStrataIntensity[0], 
 													m_HeightStrataIntensity[0], 
 													m_HeightStrataIntensity[0], 
 													m_HeightStrataIntensity[0], 
@@ -2756,7 +2834,8 @@ int main(int argc, char* argv[])
 													m_HeightStrataIntensity[0]);
 
 											for (k = 1; k < m_HeightStrataIntensityCount - 1; k ++) {
-												fprintf(StrataOutputFile, ",Int strata (%.2lf to %.2lf) total return count,Int strata (%.2lf to %.2lf) min,Int strata (%.2lf to %.2lf) max,Int strata (%.2lf to %.2lf) mean,Int strata (%.2lf to %.2lf) mode,Int strata (%.2lf to %.2lf) median,Int strata (%.2lf to %.2lf) stddev,Int strata (%.2lf to %.2lf) CV,Int strata (%.2lf to %.2lf) skewness,Int strata (%.2lf to %.2lf) kurtosis", 
+												fprintf(StrataOutputFile, ",Int strata (%.2lf to %.2lf) total return count,Int strata (%.2lf to %.2lf) return proportion,Int strata (%.2lf to %.2lf) min,Int strata (%.2lf to %.2lf) max,Int strata (%.2lf to %.2lf) mean,Int strata (%.2lf to %.2lf) mode,Int strata (%.2lf to %.2lf) median,Int strata (%.2lf to %.2lf) stddev,Int strata (%.2lf to %.2lf) CV,Int strata (%.2lf to %.2lf) skewness,Int strata (%.2lf to %.2lf) kurtosis", 
+														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
 														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
 														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
 														m_HeightStrataIntensity[k - 1], m_HeightStrataIntensity[k],
@@ -2770,7 +2849,8 @@ int main(int argc, char* argv[])
 											}
 
 											// last strata
-											fprintf(StrataOutputFile, ",Int strata (above %.2lf) total return count,Int strata (above %.2lf) min,Int strata (above %.2lf) max,Int strata (above %.2lf) mean,Int strata (above %.2lf) mode,Int strata (above %.2lf) median,Int strata (above %.2lf) stddev,Int strata (above %.2lf) CV,Int strata (above %.2lf) skewness,Int strata (above %.2lf) kurtosis", 
+											fprintf(StrataOutputFile, ",Int strata (above %.2lf) total return count,Int strata (above %.2lf) return proportion,Int strata (above %.2lf) min,Int strata (above %.2lf) max,Int strata (above %.2lf) mean,Int strata (above %.2lf) mode,Int strata (above %.2lf) median,Int strata (above %.2lf) stddev,Int strata (above %.2lf) CV,Int strata (above %.2lf) skewness,Int strata (above %.2lf) kurtosis", 
+												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
 												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
 												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
 												m_HeightStrataIntensity[m_HeightStrataIntensityCount - 2], 
@@ -3135,13 +3215,13 @@ int main(int argc, char* argv[])
 
 													if (m_DoHeightStrata) {
 														for (k = 0; k < m_HeightStrataCount; k ++) {
-															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
 														}
 													}
 													
 													if (m_DoHeightStrataIntensity) {
 														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
-															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
 														}
 													}
 
@@ -3408,13 +3488,13 @@ int main(int argc, char* argv[])
 
 													if (m_DoHeightStrata) {
 														for (k = 0; k < m_HeightStrataCount; k ++) {
-															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
 														}
 													}
 													
 													if (m_DoHeightStrataIntensity) {
 														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
-															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
+															fprintf(StrataOutputFile, ",-9999,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0");
 														}
 													}
 
@@ -4538,22 +4618,22 @@ int main(int argc, char* argv[])
 												if (m_DoHeightStrata) {
 													for (k = 0; k < m_HeightStrataCount; k ++) {
 														if (ElevStrataCount[k] > 2)
-															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", ElevStrataCount[k], ElevStrataMin[k], ElevStrataMax[k], ElevStrataMean[k], ElevStrataMode[k], ElevStrataMedian[k], sqrt(ElevStrataVariance[k]), sqrt(ElevStrataVariance[k]) / ElevStrataMean[k], ElevStrataSkewness[k], ElevStrataKurtosis[k]);
+															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", ElevStrataCount[k], (double) ElevStrataCount[k] / (double) AllReturnsTotal, ElevStrataMin[k], ElevStrataMax[k], ElevStrataMean[k], ElevStrataMode[k], ElevStrataMedian[k], sqrt(ElevStrataVariance[k]), sqrt(ElevStrataVariance[k]) / ElevStrataMean[k], ElevStrataSkewness[k], ElevStrataKurtosis[k]);
 														else if (ElevStrataCount[k])
-															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k], ElevStrataMean[k]);
+															fprintf(StrataOutputFile, ",%i,%lf,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k], (double) ElevStrataCount[k] / (double) AllReturnsTotal, ElevStrataMean[k]);
 														else 
-															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k]);
+															fprintf(StrataOutputFile, ",%i,0.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", ElevStrataCount[k]);
 													}
 												}
 												
 												if (m_DoHeightStrataIntensity) {
 													for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
 														if (IntStrataCount[k] > 2)
-															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", IntStrataCount[k], IntStrataMin[k], IntStrataMax[k], IntStrataMean[k], IntStrataMode[k], IntStrataMedian[k], sqrt(IntStrataVariance[k]), sqrt(IntStrataVariance[k]) / IntStrataMean[k], IntStrataSkewness[k], IntStrataKurtosis[k]);
+															fprintf(StrataOutputFile, ",%i,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", IntStrataCount[k], (double) IntStrataCount[k] / (double) AllReturnsTotal, IntStrataMin[k], IntStrataMax[k], IntStrataMean[k], IntStrataMode[k], IntStrataMedian[k], sqrt(IntStrataVariance[k]), sqrt(IntStrataVariance[k]) / IntStrataMean[k], IntStrataSkewness[k], IntStrataKurtosis[k]);
 														else if (IntStrataCount[k])
-															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k], IntStrataMean[k]);
+															fprintf(StrataOutputFile, ",%i,%lf,-9999.0,-9999.0,%lf,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k], (double) IntStrataCount[k] / (double) AllReturnsTotal, IntStrataMean[k]);
 														else 
-															fprintf(StrataOutputFile, ",%i,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k]);
+															fprintf(StrataOutputFile, ",%i,0.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0,-9999.0", IntStrataCount[k]);
 													}
 												}
 
