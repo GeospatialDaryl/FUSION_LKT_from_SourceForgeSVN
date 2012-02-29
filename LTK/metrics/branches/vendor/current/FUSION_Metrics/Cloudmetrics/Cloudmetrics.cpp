@@ -103,6 +103,12 @@
 //	Added proportion of returns in strata when using the /strata option. Also corrected a minor error in the output of 
 //	intensity metrics for the strate
 //
+//	1/24/2012 CloudMetrics V2.37
+//	Experimental version:
+//	Added 2 new height metrics: 
+//		SQRT of the average squared point heights
+//		CUBERT of the average cubed point heights
+//
 #include "stdafx.h"
 #include <time.h>
 #include <float.h>
@@ -120,7 +126,7 @@
 #include "command_line_core_functions.h"
 
 #define		PROGRAM_NAME		"CloudMetrics"
-#define		PROGRAM_VERSION		2.36
+#define		PROGRAM_VERSION		2.37
 #define		MINIMUM_CL_PARAMS	2
 //			                              1         2         3         4         5         6         7         8         9         10
 //			                     1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -645,6 +651,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				double ElevMin, ElevMax, ElevMean, ElevMedian, ElevMode, ElevStdDev, ElevVariance, ElevIQDist, ElevSkewness, ElevKurtosis, ElevAAD, ElevP25, ElevP75;
 				double ElevP01, ElevP05, ElevP10, ElevP20, ElevP30, ElevP40, ElevP50, ElevP60, ElevP70, ElevP80, ElevP90, ElevP95, ElevP99;
 				double ElevL1, ElevL2, ElevL3, ElevL4;
+// 2/7/12				double ElevSumSquare, ElevSumCube;
 				double IntMin, IntMax, IntMean, IntMedian, IntMode, IntStdDev, IntVariance, IntIQDist, IntSkewness, IntKurtosis, IntAAD, IntP25, IntP75;
 				double IntP01, IntP05, IntP10, IntP20, IntP30, IntP40, IntP50, IntP60, IntP70, IntP80, IntP90, IntP95, IntP99;
 				double IntL1, IntL2, IntL3, IntL4;
@@ -771,6 +778,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								fprintf(f, ",Return 1 count,Return 2 count,Return 3 count,Return 4 count,Return 5 count,Return 6 count,Return 7 count,Return 8 count,Return 9 count,Other return count");
 						}
 
+// 2/7/12						fprintf(f, ",Elev minimum,Elev maximum,Elev mean,Elev mode,Elev stddev,Elev variance,Elev CV,Elev IQ,Elev skewness,Elev kurtosis,Elev AAD,Elev MAD median,Elev MAD mode,Elev L1,Elev L2,Elev L3,Elev L4,Elev L CV,Elev L skewness,Elev L kurtosis,Elev P01,Elev P05,Elev P10,Elev P20,Elev P25,Elev P30,Elev P40,Elev P50,Elev P60,Elev P70,Elev P75,Elev P80,Elev P90,Elev P95,Elev P99,Canopy relief ratio,Elev SQRT mean SQ,Elev CURT mean CUBE,");
 						fprintf(f, ",Elev minimum,Elev maximum,Elev mean,Elev mode,Elev stddev,Elev variance,Elev CV,Elev IQ,Elev skewness,Elev kurtosis,Elev AAD,Elev MAD median,Elev MAD mode,Elev L1,Elev L2,Elev L3,Elev L4,Elev L CV,Elev L skewness,Elev L kurtosis,Elev P01,Elev P05,Elev P10,Elev P20,Elev P25,Elev P30,Elev P40,Elev P50,Elev P60,Elev P70,Elev P75,Elev P80,Elev P90,Elev P95,Elev P99,Canopy relief ratio");
 						fprintf(f, ",Int minimum,Int maximum,Int mean,Int mode,Int stddev,Int variance,Int CV,Int IQ,Int skewness,Int kurtosis,Int AAD,Int L1,Int L2,Int L3,Int L4,Int L CV,Int L skewness,Int L kurtosis,Int P01,Int P05,Int P10,Int P20,Int P25,Int P30,Int P40,Int P50,Int P60,Int P70,Int P75,Int P80,Int P90,Int P95,Int P99");
 
@@ -1044,6 +1052,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								ElevKurtosis = 0.0;
 								ElevSkewness = 0.0;
 								ElevAAD = 0.0;
+// 2/7/12								ElevSumSquare = 0.0;
+// 2/7/12								ElevSumCube = 0.0;
 
 								IntVariance = 0.0;
 								IntKurtosis = 0.0;
@@ -1082,6 +1092,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									ElevKurtosis += ((double) pt.Elevation - ElevMean) * ((double) pt.Elevation - ElevMean) * ((double) pt.Elevation - ElevMean) * ((double) pt.Elevation - ElevMean);
 									ElevAAD += fabs(((double) pt.Elevation - ElevMean));
 
+// 2/7/12									ElevSumSquare += (double) pt.Elevation * (double) pt.Elevation;
+// 2/7/12									ElevSumCube += (double) pt.Elevation * (double) pt.Elevation * (double) pt.Elevation;
+
 									IntVariance += ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean);
 									IntSkewness += ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean);
 									IntKurtosis += ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean) * ((double) pt.Intensity - IntMean);
@@ -1103,7 +1116,12 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 								ElevKurtosis = ElevKurtosis / ((double) (PointCount - 1) * ElevStdDev * ElevStdDev * ElevStdDev * ElevStdDev);
 								ElevAAD = ElevAAD / (double) PointCount;
 
-								// cover was claculated here 7/28/2009
+// 2/7/12								ElevSumSquare = ElevSumSquare / ((double) (PointCount));
+// 2/7/12								ElevSumCube = ElevSumCube / ((double) (PointCount));
+// 2/7/12								ElevSumSquare = sqrt(ElevSumSquare);
+// 2/7/12								ElevSumCube = pow(ElevSumCube, 0.3333333);
+
+								// cover was calculated here 7/28/2009
 
 								IntVariance = IntVariance / ((double) (PointCount - 1));
 								IntStdDev = sqrt(IntVariance);
@@ -1742,9 +1760,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											fprintf(f, ",%i", ReturnCounts[k]);
 									}
 
-									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
+									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
 											ElevMin, ElevMax, ElevMean, ElevMode, ElevStdDev, ElevVariance, ElevStdDev / ElevMean, ElevIQDist, ElevSkewness, ElevKurtosis, ElevAAD, ElevMadMedian, ElevMadMode,
 											ElevL1, ElevL2, ElevL3, ElevL4, ElevL2 / ElevL1, ElevL3 / ElevL2, ElevL4 / ElevL2,
+// 2/7/12											ElevP01, ElevP05, ElevP10, ElevP20, ElevP25, ElevP30, ElevP40, ElevP50, ElevP60, ElevP70, ElevP75, ElevP80, ElevP90, ElevP95, ElevP99, CanopyReliefRatio, ElevSumSquare, ElevSumCube,
 											ElevP01, ElevP05, ElevP10, ElevP20, ElevP25, ElevP30, ElevP40, ElevP50, ElevP60, ElevP70, ElevP75, ElevP80, ElevP90, ElevP95, ElevP99, CanopyReliefRatio,
 											IntMin, IntMax, IntMean, IntMode, IntStdDev, IntVariance, IntStdDev / IntMean, IntIQDist, IntSkewness, IntKurtosis, IntAAD, 
 											IntL1, IntL2, IntL3, IntL4, IntL2 / IntL1, IntL3 / IntL2, IntL4 / IntL2,
@@ -1829,10 +1848,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											fprintf(f, ",%i", ReturnCounts[k]);
 									}
 
-									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
+									fprintf(f, ",%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", 
 											ElevMin, ElevMax, ElevMean, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, CanopyReliefRatio,
+											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, CanopyReliefRatio, 0.0, 0.0,
+//											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, CanopyReliefRatio,
 											IntMin, IntMax, IntMean, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 											0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
@@ -1894,7 +1914,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 											fprintf(f, ",%i", ReturnCounts[k]);
 									}
 
-									fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
+									fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
+//									fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
 
 									if (ComputeCover) {
 										fprintf(f, ",0.0");
@@ -1960,7 +1981,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 								//                                                1                                       2                                       3                                       4                                       5
 								//            1   2   3   4   5   6   7   8   9   0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5   6   7   8   9   0   1   2
-								fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
+								fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
+//								fprintf(f, ",0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0");
 
 								if (ComputeCover) {
 									fprintf(f, ",0.0");

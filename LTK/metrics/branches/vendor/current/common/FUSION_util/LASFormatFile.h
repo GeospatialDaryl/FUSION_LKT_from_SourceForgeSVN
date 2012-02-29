@@ -1,6 +1,13 @@
 // LASFormatFile.h: interface for the CLASFormatFile class.
 //
 //////////////////////////////////////////////////////////////////////
+//
+// 1/17/2012
+// modified the logic used to open LAS files so I can assign a larger buffer for reading point data. in use, the
+// buffer is managed by the calling code. previous versions tried to set a larger buffer but the buffer was only 
+// being set whe the file was opened to determine the file format and not when reading point data. The larger buffer
+// doesn't seem to make much difference in the initial tests.
+//
 
 #if !defined(AFX_LASFORMATFILE_H__8A7C6B08_13EB_46AE_A854_B37E90F3FB09__INCLUDED_)
 #define AFX_LASFORMATFILE_H__8A7C6B08_13EB_46AE_A854_B37E90F3FB09__INCLUDED_
@@ -9,7 +16,14 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#define		HEADERSIZE		227
+#define		HEADERSIZE			227
+#define		HEADERSIZEV12		227
+#define		HEADERSIZEV13		235
+
+// record types for CopyVariableRecord()
+#define		ALLRECORDS			0x7FFF
+#define		PROJECTIONRECORDS	0x01
+#define		UNKNOWNRECORDTYPE	0x40
 
 typedef  unsigned long ulong;
 typedef  unsigned short ushort;
@@ -91,7 +105,9 @@ public:
 	char			Description[33];				// record description
 
 public:
-	BOOL Read(FILE* FileHandle);
+	BOOL Read(FILE* FileHandle);					// poorly named...actually only reads the header fields
+	BOOL ReadHeader(FILE* FileHandle);
+	BOOL WriteHeader(FILE *FileHandle);
 	CLASVariableLengthRecord();
 	virtual ~CLASVariableLengthRecord();
 };
@@ -160,6 +176,7 @@ public:
 	ushort			Blue;							// Blue image channel value...always scaled to 16-bit value...divide by 256 to get 8-bit value
 
 public:
+	CLASPointDataRecordFormatAll& CLASPointDataRecordFormatAll::operator=(CLASPointDataRecordFormatAll& src);
 	BOOL WriteAdditionalValues(FILE* FileHandle, int Format = 0);
 	BOOL Write(FILE* FileHandle, int Format = 0);
 	BOOL ReadAdditionalValues(FILE* FileHandle, int Format = 0);
@@ -216,12 +233,14 @@ public:
 	FILE* m_FileHandle;
 
 public:
+	BOOL TestVariableRecordType(unsigned short RecordID, int ValidTypes);
 	BOOL JumpToVariableRecord(int index = 0);
+	int CopyVariableRecord(int index, FILE *FileHandle, int RecordTypes = ALLRECORDS);
 	void Close();
 	BOOL ReadNextPoint();
 	BOOL IsValid();
 	void JumpToPointRecord(int index = 0);
-	BOOL Open(LPCTSTR FileName);
+	BOOL Open(LPCTSTR FileName, char *buffer = NULL, int buffersize = 0);
 	BOOL VerifyFormat(LPCTSTR FileName);
 	CString m_FileName;
 	CLASFormatFile();
