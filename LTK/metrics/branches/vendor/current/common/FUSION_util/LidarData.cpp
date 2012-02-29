@@ -7,6 +7,10 @@
 // a CLIDARData file to LAS (only if original file was LAS format)...still not perfect but a start at
 // switching over to use LAS files for all FUSION tasks
 //
+// 1/17/2012
+// modified the logic used to set a larger buffer for point data files. previous logic wasn't really being
+// applied in a way that help with reading point data
+//
 #include "stdafx.h"
 #include "LidarData.h"
 #include "DataIndex.h"
@@ -17,6 +21,8 @@
 static char THIS_FILE[]=__FILE__;
 #define new DEBUG_NEW
 #endif
+
+#define FILE_BUFFER_SIZE 32766
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -61,12 +67,6 @@ BOOL CLidarData::Open(LPCTSTR szFileName)
 	FILE* f = fopen(szFileName, "rb");
 
 	if (f) {
-//		m_BinaryFileBuffer = new char[4096];
-//		if (m_BinaryFileBuffer) {
-//			if (setvbuf(f, m_BinaryFileBuffer, _IOFBF, 4096) == 0)
-//				m_HaveLocalBuffer = TRUE;
-//		}
-
 		fread(signature, sizeof(char), 8, f);
 		signature[8] = '\0';
 
@@ -113,13 +113,44 @@ BOOL CLidarData::Open(LPCTSTR szFileName)
 		}
 		else if (m_FileFormat == BINDATA) {
 			m_BinaryFile = fopen(szFileName, "rb");
-			if (m_BinaryFile)
+			if (m_BinaryFile) {
+				// code to create larger read buffer
+				m_BinaryFileBuffer = new char[FILE_BUFFER_SIZE];
+				if (m_BinaryFileBuffer) {
+					if (setvbuf(m_BinaryFile, m_BinaryFileBuffer, _IOFBF, FILE_BUFFER_SIZE) == 0)
+						m_HaveLocalBuffer = TRUE;
+					else {
+						delete [] m_BinaryFileBuffer;
+						m_HaveLocalBuffer = FALSE;
+					}
+				}
+				// end of code
+
 				fseek(m_BinaryFile, 16, SEEK_SET);
+			}
 			else
 				m_FileFormat = INVALID;
 		}
 		else if (m_FileFormat == LASDATA) {
-			m_LASFile.Open(szFileName);
+			// code to create larger read buffer
+			m_BinaryFileBuffer = new char[FILE_BUFFER_SIZE];
+			if (m_BinaryFileBuffer) {
+				m_LASFile.Open(szFileName, m_BinaryFileBuffer, FILE_BUFFER_SIZE);
+				if (m_LASFile.IsValid()) {
+					m_HaveLocalBuffer = TRUE;
+				}
+				else {
+					delete [] m_BinaryFileBuffer;
+					m_HaveLocalBuffer = FALSE;
+
+					// reopen file without the buffer
+					m_LASFile.Open(szFileName);
+				}
+			}
+			else {
+				m_LASFile.Open(szFileName);
+			}
+
 			if (m_LASFile.IsValid()) {
 				m_Version = (float) m_LASFile.Header.VersionMajor + (float) m_LASFile.Header.VersionMinor / 10.0f;
 				m_LASFile.JumpToPointRecord(0);		// first point, index == 0
@@ -134,13 +165,13 @@ BOOL CLidarData::Open(LPCTSTR szFileName)
 			m_Valid = FALSE;
 
 		// get rid of expanded buffer
-//		if (!m_Valid) {
-//			if (m_HaveLocalBuffer) {
-//				m_HaveLocalBuffer = FALSE;
-//				delete [] m_BinaryFileBuffer;
-//				m_BinaryFileBuffer = NULL;
-//			}
-//		}
+		if (!m_Valid) {
+			if (m_HaveLocalBuffer) {
+				m_HaveLocalBuffer = FALSE;
+				delete [] m_BinaryFileBuffer;
+				m_BinaryFileBuffer = NULL;
+			}
+		}
 	}
 
 	return(m_Valid);

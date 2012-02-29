@@ -1426,9 +1426,9 @@ BOOL PlansDTM::WriteASCIIGrid(LPCTSTR FileName, double Zfactor, BOOL DataIsRaste
 		}
 		fprintf(f, "cellsize %.4lf\n", Header.column_spacing);
 		if (Header.z_bytes == 0 || Header.z_bytes == 1)
-			fprintf(f, "nodata_value -32767\n");
+			fprintf(f, "nodata_value -9999\n");
 		else
-			fprintf(f, "nodata_value -32767.0000\n");
+			fprintf(f, "nodata_value -9999.000000\n");
 
 		int i, j;
 		double pz;
@@ -1437,9 +1437,9 @@ BOOL PlansDTM::WriteASCIIGrid(LPCTSTR FileName, double Zfactor, BOOL DataIsRaste
 				pz = ReadInternalElevationValue(i, j);
 				if (pz < 0.0) {
 					if (Header.z_bytes == 0 || Header.z_bytes == 1)
-						fprintf(f, "%.0lf ", -32767);
+						fprintf(f, "%.0lf ", -9999);
 					else
-						fprintf(f, "%.4lf ", -32767.0);
+						fprintf(f, "%.4lf ", -9999.000000);
 				}
 				else {
 					if (Header.z_bytes == 0 || Header.z_bytes == 1)

@@ -158,6 +158,40 @@
 //	5/4/2011 GridMetrics V3.26
 //	Added proportion of returns in strata when using the /strata option.
 //
+//	8/31/2011 Gridmetrics V3.27
+//	Changed the default behavior with ground models so that an internal (in memory) model is not automatically created. In previous versions
+//	an internal model was being created and this process was taking a very long time so the overall processing times were going up by a 
+//	factor of 10. Still not sure exactly why processing was so slow but eliminating the extra time needed to create the internal model
+//	seems to speed up processing.
+//
+// 11/16/2011 GridMetrics V3.28
+//	Fixed a problem when computing strata metrics using the /strata or /intstrata options. The decision to compute the strata metrics was being
+//	made based on the number of returns above the minimum height for other metrics. This resulted in bad metrics for any cells that did not have
+//	enough returns above the minimum height to compute the "normal" metrics.
+//
+// 11/29/2011 GridMetrics V3.29
+//	Added an /nointdtm option to prevent creation of an internal DTM when processing using the /grid, /gridxy, and /align options. For some 
+//	datasets, the creation of the internal model was resulting in a problem with the metrics along the top and right edges of the data extent.
+//	For most uses, this option is not needed. The case where problems arose involved a small rectangular dataset and metrics computed using a relatively 
+//	large cell size. The internal ground model was being created with 1 extra row and column but the extra row and column were not being populated
+//	with valid elevations since they were technically outside the data coverage area. As a result, the returns along the top and right sides
+//	of the data extent were not being correctly adjusted for height above ground. This caused the elevation metrics to have incorrect values
+//	for the cells along the top and right sides of the extent.
+//
+//	Also corrected a problem when using the /class switch to compute metrics for points with the specified LAS classification codes. Only values
+//	from 0-15 were being processed correctly. The change ensures that values from 0-31 are processed correctly.
+//
+// 1/6/2012 GridMetrics V3.29
+//	Modified the values output for metrics when there are no points in a cell. Previous versions output 0 for some return count metrics 
+//	and -9999 (NODATA) for others. Starting with this version, all metrics have NODATA values when there are no points in the cell.
+//
+//	Also fixed a problem with the counts of individual returns when there were too few returns in a cell. Previous version set all 
+//	individual return counts to 0. Starting with this version, the individual return counts reflect the actual counts in the cell when there
+//	are too few returns in the cell. The number of points needed to compute metrics is controlled by the /minpts command line switch.
+//
+//	Changed the sytnax description to indicate that the default minimum number of returns needed to compute metrics is 4. Previous versions
+//	indicated that the minimum number of returns was 3.
+//	
 #include "stdafx.h"
 #include "gridmetrics.h"
 #include <time.h>
@@ -181,7 +215,7 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 #define		PROGRAM_NAME		"GridMetrics"
-#define		PROGRAM_VERSION		3.26
+#define		PROGRAM_VERSION		3.29
 #define		MINIMUM_CL_PARAMS	5		// special since the groundfile parameter is semi-optional
 //			                              1         2         3         4         5         6         7         8         9         10
 //			                     1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -324,7 +358,7 @@ CWinApp theApp;
 
 using namespace std;
 
-char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster strata intstrata kde";
+char* ValidCommandLineSwitches = "outlier class id minpts minht nocsv noground diskground nointdtm first nointensity fuel grid gridxy align extent buffer cellbuffer ascii topo raster strata intstrata kde";
 
 // global variables...not the best programming practice but helps with a "standard" template for command line utilities
 CArray<CString, CString> m_DataFile;
@@ -358,6 +392,8 @@ BOOL m_UserGrid;
 BOOL m_UserGridXY;
 BOOL m_ForceAlignment;
 BOOL m_ForceExtent;
+
+BOOL m_CreateInternalDTM;
 
 double m_MinHeightForMetrics;
 
@@ -542,7 +578,7 @@ void usage()
 //	printf("  mediancut:# Cutoff value for median filter used to create red/blue image\n");
 //	printf("  invertcolor Invert the color codes for cells above/below median cutoff\n");
 	printf("  minpts:#    Minimum number of points in a cell required to compute metrics\n");
-	printf("              default is 3 points\n");
+	printf("              default is 4 points\n");
 	printf("  minht:#     Minimum height for points used to compute metrics. Density always\n");
 	printf("              uses all points including those with heights below the minimum.\n");
 	printf("  nocsv       Do not create an output file for cell metrics\n");
@@ -555,6 +591,10 @@ void usage()
 	printf("  diskground  Do not load ground surface models into memory. When this option\n");
 	printf("              is specified, larger areas can be processed but processing will\n");
 	printf("              be 4 to 5 times slower. Ignored when /noground option is used.\n");
+	printf("  nointdtm    Do not create an internal ground model that corresponds to the\n");
+	printf("              data extent. This option is most often used to prevent edge\n");
+	printf("              artifacts when computing metrics for small areas using a\n");
+	printf("              relatively larger cell size.\n");
 //	printf("  alldensity  Use all returns when computing density (percent cover)\n");
 //	printf("              default is to use only first returns when computing density\n");
 	printf("  first       Use only first returns to compute all metrics (default is to\n");
@@ -712,6 +752,8 @@ void InitializeGlobalVariables()
 
 	m_NoItensityMetrics = FALSE;
 
+	m_CreateInternalDTM = TRUE;
+
 	m_DoHeightStrata = FALSE;
 	m_DoHeightStrataIntensity = FALSE;
 	m_HeightStrataCount = 0;
@@ -834,6 +876,9 @@ int ParseCommandLine()
 
 	m_GroundFromDisk = m_clp.Switch("diskground");
 
+	if (m_clp.Switch("nointdtm"))
+		m_CreateInternalDTM = FALSE;
+
 	m_NoCSVFile = m_clp.Switch("nocsv");
 
 	m_ApplyFuelModels = m_clp.Switch("fuel");
@@ -863,8 +908,16 @@ int ParseCommandLine()
 
 			char* cls = strtok(classcodes, " ,");
 			int clscnt = 0;
+			int tcls;
 			while (cls) {
-				m_ClassCodes[atoi(cls) & 15] = 1;
+				tcls = atoi(cls);
+				if (tcls >= 0 && tcls < NUMBER_OF_CLASS_CODES)
+					m_ClassCodes[tcls] = 1;
+				else {
+					// bad class code
+					csTemp.Format("LAS class code: %i out of range...must be 0 - %i", tcls, NUMBER_OF_CLASS_CODES);
+					LTKCL_PrintStatus(csTemp);
+				}
 
 				clscnt ++;
 				cls = strtok(NULL, " ,");
@@ -1767,10 +1820,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 										// read each point looking at classification codes
 										while (ldat.ReadNextRecord(&pt)) {
 											// test for specific LAS classification values
-											if (m_ClassCodes[ldat.m_LASFile.PointRecord.Classification & 15] == 1) {
-			//								if (ldat.m_LASFile.PointRecord.V11Classification == m_LASClass) {
-												PointCount ++;
-												FilePointCount ++;
+											if (ldat.m_LASFile.PointRecord.Classification > 0 && ldat.m_LASFile.PointRecord.Classification < NUMBER_OF_CLASS_CODES) {
+												if (m_ClassCodes[ldat.m_LASFile.PointRecord.Classification] == 1) {
+													PointCount ++;
+													FilePointCount ++;
+												}
 											}
 										}
 									}
@@ -1974,7 +2028,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 						// try to read the ground models that cover the data extent into memory
 						// using the patch access for surfaces from disk takes 4-5 times longer to process
 						if (Points && m_UseGround && m_Terrain.IsValid()) {
-							m_Terrain.PreLoadData(xMin, yMin, xMax, yMax, TRUE);
+							// 11/28/2011 changed to give control over creation of internal ground model
+							m_Terrain.PreLoadData(xMin, yMin, xMax, yMax, m_CreateInternalDTM);
+// 11/29/2011							m_Terrain.PreLoadData(xMin, yMin, xMax, yMax, TRUE);
+//							m_Terrain.PreLoadData(xMin, yMin, xMax, yMax, FALSE);
 
 							// print verbose info
 							int ModelsInMemory = 0;
@@ -2134,8 +2191,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									// 10/20/2009
 									// test for specific LAS classification values
 									if (m_IncludeSpecificClasses && ldat.GetFileFormat() == LASDATA && m_NumberOfClassCodes > 0) {
-										if (m_ClassCodes[ldat.m_LASFile.PointRecord.Classification & 15] == 0)
-											continue;
+										if (ldat.m_LASFile.PointRecord.Classification > 0 && ldat.m_LASFile.PointRecord.Classification < NUMBER_OF_CLASS_CODES) {
+											if (m_ClassCodes[ldat.m_LASFile.PointRecord.Classification] == 0)
+												continue;
+										}
 									}
 
 									// count first returns
@@ -2540,6 +2599,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 								double x, y;
 
+/* shouldn't need to initialize these variables in this part of the code...they are initialized for each cell 11/16/2011
 								// initialize strata counts and std dev (will be used to accumulate values)
 								for (k = 0; k < MAX_NUMBER_OF_STRATA; k ++) {
 									ElevStrataCount[k] = 0;
@@ -2555,7 +2615,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									ElevStrataM3[k] = 0.0;
 									ElevStrataM4[k] = 0.0;
 									for (j = 0; j < 10; j ++)
-										ElevStrataCountReturn[k][j];
+										ElevStrataCountReturn[k][j] = 0;
 
 									IntStrataCount[k] = 0;
 									IntStrataVariance[k] = 0.0;
@@ -2570,8 +2630,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 									IntStrataM3[k] = 0.0;
 									IntStrataM4[k] = 0.0;
 									for (j = 0; j < 10; j ++)
-										IntStrataCountReturn[k][j];
+										IntStrataCountReturn[k][j] = 0;
 								}
+*/ // end 11/16/2011
 
 								// set up loop to compute the intensity metrics, then the elevation metrics
 								while (m_StatParameter < METRICS_DONE) {
@@ -2984,10 +3045,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 												// initialize return counts
 												for (k = 0; k < 10; k ++) {
-													ReturnCounts[k] = 0;
+													ReturnCounts[k] = -9999;		// 1/6/2012 set this to -9999 instead of 0
 												}
 
-												GridPointCount = 0;
+												GridPointCount = -9999;		// 1/6/2012 set this to -9999 instead of 0
 
 												// have values for current cell...
 												// see if cell is in "buffer"
@@ -3260,10 +3321,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 												// initialize return counts
 												for (k = 0; k < 10; k ++) {
-													ReturnCounts[k] = 0;
+													ReturnCounts[k] = -9999;			// 1/6/2012 set this to -9999 instead of 0
 												}
 
-												GridPointCount = 0;
+												GridPointCount = -9999;			// 1/6/2012 set this to -9999 instead of 0
 
 												// have values for current cell...
 												// see if cell is in "buffer"
@@ -3574,7 +3635,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														ReturnCounts[Points[CurrentPointNumber].ReturnNumber - 1] ++;
 													}
 													else {
-														// if return numbr is <= 0 or >= 10, count as other return
+														// if return number is <= 0 or >= 10, count as other return
 														ReturnCounts[9] ++;
 													}
 
@@ -3606,6 +3667,282 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												GridAllDensity = (double) AllReturnsAboveThreshold / (double) AllReturnsTotal;
 											else
 												GridAllDensity = -9999.0;		// changed from -1.0 1/27/2009
+
+											// 11/16/2011...need to compute strata-related stuff if we have any points in the cell
+											// Prior to this revision, strata metrics were computed incorrectly for cells that had no points
+											// above the minimum height...the metrics were actually the previous cell's values
+											//
+											// if we are doing strata, initialize
+											if (m_DoHeightStrata || m_DoHeightStrataIntensity && m_StatParameter == INTENSITY_VALUE) {
+												// do strata when doing intensity metrics
+												// this is when we have both the return elevation and its intensity
+												// when doing elevation metrics, we have only elevation
+
+												// initialize strata counts and std dev (will be used to accumulate values)
+												for (k = 0; k < MAX_NUMBER_OF_STRATA; k ++) {
+													ElevStrataCount[k] = 0;
+													ElevStrataVariance[k] = 0.0;
+													ElevStrataMean[k] = 0.0;
+													ElevStrataMin[k] = DBL_MAX;
+													ElevStrataMax[k] = DBL_MIN;
+													ElevStrataMedian[k] = 0.0;
+													ElevStrataMode[k] = 0.0;
+													ElevStrataSkewness[k] = 0.0;
+													ElevStrataKurtosis[k] = 0.0;
+													ElevStrataM2[k] = 0.0;
+													ElevStrataM3[k] = 0.0;
+													ElevStrataM4[k] = 0.0;
+													for (m = 0; m < 10; m ++)
+														ElevStrataCountReturn[k][m] = 0;		// counts of each return in strata
+
+													IntStrataCount[k] = 0;
+													IntStrataVariance[k] = 0.0;
+													IntStrataMean[k] = 0.0;
+													IntStrataMin[k] = DBL_MAX;
+													IntStrataMax[k] = DBL_MIN;
+													IntStrataMedian[k] = 0.0;
+													IntStrataMode[k] = 0.0;
+													IntStrataSkewness[k] = 0.0;
+													IntStrataKurtosis[k] = 0.0;
+													IntStrataM2[k] = 0.0;
+													IntStrataM3[k] = 0.0;
+													IntStrataM4[k] = 0.0;
+													for (m = 0; m < 10; m ++)
+														IntStrataCountReturn[k][m] = 0;			// counts of each return in strata
+												}
+
+												// if there are points in the cell, compute the strata metrics
+												if (AllReturnsTotal) {
+													// resort cell data by elevation to do strata...for INTENSITY_VALUE data are 
+													// sorted by the intensity stored in the value field
+													qsort(&Points[FirstCellPoint], AllReturnsTotal, sizeof(PointRecord), compareCellElev);
+
+													if (m_DoHeightStrata) {
+														for (l = FirstCellPoint; l < FirstCellPoint + AllReturnsTotal; l ++) {
+															// figure out which strata the point is in, accumulate counts and compute mean and variance
+															// algorithm for 1-pass calculation of mean and std dev from: http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+															// modified algorithm to use (n - 1) instead of n (in final calculation outside loop) for kurtosis and skewness to match
+															// the values computed in "old" logic (non-strata)
+															for (k = 0; k < m_HeightStrataCount; k ++) {
+																if (Points[l].Elevation < m_HeightStrata[k]) {
+																	// ElevStrataCount[] has total return count
+																	n1 = ElevStrataCount[k];
+																	ElevStrataCount[k] ++;
+
+																	// compute mean, variance, skewness, and kurtosis
+																	delta = (double) Points[l].Elevation - ElevStrataMean[k];
+																	delta_n = delta / (double) ElevStrataCount[k];
+																	delta_n2 = delta_n * delta_n;
+
+																	term1 = delta * delta_n * (double) n1;
+																	ElevStrataMean[k] += delta_n;
+																	ElevStrataM4[k] += term1 * delta_n2 * ((double) ElevStrataCount[k] * (double) ElevStrataCount[k] - 3.0 * (double) ElevStrataCount[k] + 3.0) + 6.0 * delta_n2 * ElevStrataM2[k] - 4.0 * delta_n * ElevStrataM3[k];
+																	ElevStrataM3[k] += term1 * delta_n * ((double) ElevStrataCount[k] - 2.0) - 3.0 * delta_n * ElevStrataM2[k];
+																	ElevStrataM2[k] += term1;
+
+																	// bins 0-8 have counts for returns 1-9
+																	// bin 9 has count of "other" returns
+																	if (Points[l].ReturnNumber < 10 && Points[l].ReturnNumber > 0) {
+																		ElevStrataCountReturn[k][Points[l].ReturnNumber - 1] ++;
+																	}
+																	else {
+																		ElevStrataCountReturn[k][9] ++;
+																	}
+
+																	// do min/max
+																	ElevStrataMin[k] = min(ElevStrataMin[k], Points[l].Elevation);
+																	ElevStrataMax[k] = max(ElevStrataMax[k], Points[l].Elevation);
+
+																	break;
+																}
+															}
+														}
+
+														// compute the final variance
+														for (k = 0; k < m_HeightStrataCount; k ++) {
+															if (ElevStrataCount[k]) {
+																ElevStrataVariance[k] = ElevStrataM2[k] / (double) (ElevStrataCount[k] - 1);
+
+																// kurtosis and skewness use (n - 1) to match values computed for entire point cloud
+//																	ElevStrataKurtosis[k] = ((double) ElevStrataCount[k] * ElevStrataM4[k]) / (ElevStrataM2[k] * ElevStrataM2[k]) - 3.0;
+																ElevStrataKurtosis[k] = (((double) ElevStrataCount[k] - 1.0) * ElevStrataM4[k]) / (ElevStrataM2[k] * ElevStrataM2[k]);
+																ElevStrataSkewness[k] = (sqrt((double) ElevStrataCount[k] - 1.0) * ElevStrataM3[k]) / sqrt(ElevStrataM2[k] * ElevStrataM2[k] * ElevStrataM2[k]);
+															}
+														}
+
+														// compute median and mode
+														TempPointCount = FirstCellPoint;
+														for (k = 0; k < m_HeightStrataCount; k ++) {
+															if (ElevStrataCount[k]) {
+																WholePart = (int) ((float) (ElevStrataCount[k] - 1) * 0.5);
+																Fraction = ((float) (ElevStrataCount[k] - 1) * 0.5) - WholePart;
+															
+																WholePart = TempPointCount + WholePart;
+
+																if (Fraction == 0.0) {
+																	ElevStrataMedian[k] = Points[WholePart].Elevation;
+																}
+																else {
+																	ElevStrataMedian[k] = Points[WholePart].Elevation + Fraction * (Points[WholePart + 1].Elevation - Points[WholePart].Elevation);
+																}
+															}
+															else {
+																ElevStrataMedian[k] = -9999.0;
+															}
+
+															TempPointCount += ElevStrataCount[k];
+														}
+
+														// figure out the mode using 64 bins for data
+														// count values using bins
+														TempPointCount = FirstCellPoint;
+														for (k = 0; k < m_HeightStrataCount; k ++) {
+															if (ElevStrataCount[k]) {
+																for (l = 0; l < NUMBEROFBINS; l ++)
+																	Bins[l] = 0;
+
+																for (l = TempPointCount; l < TempPointCount + ElevStrataCount[k]; l ++) {
+																	TheBin = (int) ((((double) Points[l].Elevation - ElevStrataMin[k]) / (ElevStrataMax[k] - ElevStrataMin[k])) * (double) (NUMBEROFBINS - 1));
+																	Bins[TheBin] ++;
+																}
+
+																// find most frequent value
+																MaxCount = -1;
+																for (l = 0; l < NUMBEROFBINS; l ++) {
+																	if (Bins[l] > MaxCount) {
+																		MaxCount = Bins[l];
+																		TheBin = l;
+																	}
+																}
+
+																// compute mode by un-scaling the bin number
+																ElevStrataMode[k] = ElevStrataMin[k] + ((double) TheBin / (double) (NUMBEROFBINS - 1)) * (ElevStrataMax[k] - ElevStrataMin[k]);
+															}
+															else {
+																ElevStrataMode[k] = -9999.0;
+															}
+
+															TempPointCount += ElevStrataCount[k];
+														}
+													}
+
+													if (m_DoHeightStrataIntensity) {
+														for (l = FirstCellPoint; l < FirstCellPoint + AllReturnsTotal; l ++) {
+															// figure out which strata the point is in, accumulate counts and compute mean and variance
+															// algorithm for 1-pass calculation of mean and std dev from: http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+															for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+																if (Points[l].Elevation < m_HeightStrataIntensity[k]) {
+																	// ElevStrataCount[] has total return count
+																	n1 = IntStrataCount[k];
+																	IntStrataCount[k] ++;
+
+																	// compute mean, variance, skewness, and kurtosis
+																	delta = (double) Points[l].Value - IntStrataMean[k];
+																	delta_n = delta / (double) IntStrataCount[k];
+																	delta_n2 = delta_n * delta_n;
+
+																	term1 = delta * delta_n * (double) n1;
+																	IntStrataMean[k] += delta_n;
+																	IntStrataM4[k] += term1 * delta_n2 * ((double) IntStrataCount[k] * (double) IntStrataCount[k] - 3.0 * (double) IntStrataCount[k] + 3.0) + 6.0 * delta_n2 * IntStrataM2[k] - 4.0 * delta_n * IntStrataM3[k];
+																	IntStrataM3[k] += term1 * delta_n * ((double) IntStrataCount[k] - 2.0) - 3.0 * delta_n * IntStrataM2[k];
+																	IntStrataM2[k] += term1;
+
+																	// bins 0-8 have counts for returns 1-9
+																	// bin 9 has count of "other" returns
+																	if (Points[l].ReturnNumber < 10 && Points[l].ReturnNumber > 0) {
+																		IntStrataCountReturn[k][Points[l].ReturnNumber - 1] ++;
+																	}
+																	else {
+																		IntStrataCountReturn[k][9] ++;
+																	}
+
+																	// do min/max
+																	IntStrataMin[k] = min(IntStrataMin[k], Points[l].Value);
+																	IntStrataMax[k] = max(IntStrataMax[k], Points[l].Value);
+
+																	break;
+																}
+															}
+														}
+
+														// compute the final values
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															if (IntStrataCount[k]) {
+																IntStrataVariance[k] = IntStrataM2[k] / (double) (IntStrataCount[k] - 1);
+
+																// kurtosis and skewness use (n - 1) to match values computed for entire point cloud
+//																	IntStrataKurtosis[k] = ((double) IntStrataCount[k] * IntStrataM4[k]) / (IntStrataM2[k] * IntStrataM2[k]) - 3.0;
+																IntStrataKurtosis[k] = (((double) IntStrataCount[k] - 1.0) * IntStrataM4[k]) / (IntStrataM2[k] * IntStrataM2[k]);
+																IntStrataSkewness[k] = (sqrt((double) IntStrataCount[k] - 1.0) * IntStrataM3[k]) / sqrt(IntStrataM2[k] * IntStrataM2[k] * IntStrataM2[k]);
+															}
+														}
+
+														// resort the list for the current cell using intensity values within each height strata
+														TempPointCount = FirstCellPoint;
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															if (IntStrataCount[k]) {
+																qsort(&Points[TempPointCount], (size_t) IntStrataCount[k], sizeof(PointRecord), comparePRint);
+															}
+															TempPointCount += IntStrataCount[k];
+														}
+													
+														// compute median and mode
+														TempPointCount = FirstCellPoint;
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															if (IntStrataCount[k]) {
+																WholePart = (int) ((float) (IntStrataCount[k] - 1) * 0.5);
+																Fraction = ((float) (IntStrataCount[k] - 1) * 0.5) - WholePart;
+															
+																WholePart = TempPointCount + WholePart;
+
+																if (Fraction == 0.0) {
+																	IntStrataMedian[k] = Points[WholePart].Value;
+																}
+																else {
+																	IntStrataMedian[k] = Points[WholePart].Value + Fraction * (Points[WholePart + 1].Value - Points[WholePart].Value);
+																}
+															}
+															else {
+																IntStrataMedian[k] = -9999.0;
+															}
+
+															TempPointCount += IntStrataCount[k];
+														}
+
+														// figure out the mode using 64 bins for data
+														// count values using bins
+														TempPointCount = FirstCellPoint;
+														for (k = 0; k < m_HeightStrataIntensityCount; k ++) {
+															if (IntStrataCount[k]) {
+																for (l = 0; l < NUMBEROFBINS; l ++)
+																	Bins[l] = 0;
+
+																for (l = TempPointCount; l < TempPointCount + IntStrataCount[k]; l ++) {
+																	TheBin = (int) ((((double) Points[l].Value - IntStrataMin[k]) / (IntStrataMax[k] - IntStrataMin[k])) * (double) (NUMBEROFBINS - 1));
+																	Bins[TheBin] ++;
+																}
+
+																// find most frequent value
+																MaxCount = -1;
+																for (l = 0; l < NUMBEROFBINS; l ++) {
+																	if (Bins[l] > MaxCount) {
+																		MaxCount = Bins[l];
+																		TheBin = l;
+																	}
+																}
+
+																// compute mode by un-scaling the bin number
+																IntStrataMode[k] = IntStrataMin[k] + ((double) TheBin / (double) (NUMBEROFBINS - 1)) * (IntStrataMax[k] - IntStrataMin[k]);
+															}
+															else {
+																IntStrataMode[k] = -9999.0;
+															}
+
+															TempPointCount += IntStrataCount[k];
+														}
+													}
+												}
+											}
 
 											// if we have enough points, compute metrics
 											if (CellCount > m_MinCellPoints) {
@@ -3950,7 +4287,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														GridMadMode = ModeDiffValueList[WholePart] + Fraction * (ModeDiffValueList[WholePart + 1] - ModeDiffValueList[WholePart]);
 													}
 												}
-												else {
+/*												else {
 													// do strata when doing intensity metrics
 													// this is when we have both the return elevation and its intensity
 													// when doing elevation metrics, we have only elevation
@@ -3970,7 +4307,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															ElevStrataM3[k] = 0.0;
 															ElevStrataM4[k] = 0.0;
 															for (m = 0; m < 10; m ++)
-																ElevStrataCountReturn[k][m];
+																ElevStrataCountReturn[k][m] = 0;		// counts of each return in strata
 
 															IntStrataCount[k] = 0;
 															IntStrataVariance[k] = 0.0;
@@ -3985,7 +4322,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 															IntStrataM3[k] = 0.0;
 															IntStrataM4[k] = 0.0;
 															for (m = 0; m < 10; m ++)
-																IntStrataCountReturn[k][m];
+																IntStrataCountReturn[k][m] = 0;			// counts of each return in strata
 														}
 
 														// resort cell data by elevation to do strata...for INTENSITY_VALUE data are 
@@ -4218,7 +4555,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 														}
 													}
 												}
-
+*/
 //***********************************************
 #ifdef INCLUDE_OUTLIER_IMAGE_CODE
 												// do outlier analysis
@@ -4267,8 +4604,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 												}
 
 												// initialize return counts
-												for (k = 0; k < 10; k ++) {
-													ReturnCounts[k] = 0;
+												if (CellCount <= 0) {
+													for (k = 0; k < 10; k ++) {
+														ReturnCounts[k] = 0;
+													}
 												}
 											}
 

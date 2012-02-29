@@ -194,7 +194,7 @@ BOOL CLASFormatFile::VerifyFormat(LPCTSTR FileName)
 	return(retcode);
 }
 
-BOOL CLASFormatFile::Open(LPCTSTR FileName)
+BOOL CLASFormatFile::Open(LPCTSTR FileName, char *buffer, int buffersize)
 {
 	BOOL retcode = FALSE;
 
@@ -202,7 +202,19 @@ BOOL CLASFormatFile::Open(LPCTSTR FileName)
 		// open file
 		m_FileHandle = fopen(FileName, "rb");
 		if (m_FileHandle) {
-			retcode = Header.Read(m_FileHandle);
+			// set up a larger buffer...buffer is managed by calling code
+			if (buffer) {
+				if (setvbuf(m_FileHandle, buffer, _IOFBF, buffersize) == 0) {
+					retcode = Header.Read(m_FileHandle);
+				}
+				else {
+					// can't attach buffer...close file
+					fclose(m_FileHandle);
+					retcode = FALSE;
+				}
+			}
+			else
+				retcode = Header.Read(m_FileHandle);
 		}
 	}
 	m_ValidHeader = retcode;
@@ -463,6 +475,24 @@ void CLASFormatFile::Close()
 	}
 }
 
+BOOL CLASFormatFile::TestVariableRecordType(unsigned short RecordID, int ValidTypes)
+{
+	int RecordType = UNKNOWNRECORDTYPE;
+
+	// determine record type
+
+	// georeferencing records...normal for point data
+	if (RecordID == 34735 || RecordID == 34736 || RecordID == 34737)
+		RecordType = PROJECTIONRECORDS;
+
+	// georeferencing records...usually for raster data
+	if (RecordID == 33922 || RecordID == 33550 || RecordID == 34264)
+		RecordType = PROJECTIONRECORDS;
+
+	// test type and return
+	return((RecordType & ValidTypes) != 0);
+}
+
 BOOL CLASFormatFile::JumpToVariableRecord(int index)
 {
 	CLASVariableLengthRecord VarRec;
@@ -483,6 +513,49 @@ BOOL CLASFormatFile::JumpToVariableRecord(int index)
 	return(FALSE);
 }
 
+int CLASFormatFile::CopyVariableRecord(int index, FILE *OutputFileHandle, int RecordTypes)
+{
+	CLASVariableLengthRecord VarRec;
+	if (IsValid() && Header.NumberOfVariableLengthRecords && index < (int) Header.NumberOfVariableLengthRecords) {
+		if (JumpToVariableRecord(index)) {
+			// ready to copy record to OutputFileHandle
+			unsigned char c;
+			int ReadCnt = 0;
+			int WriteCnt = 0;
+			BOOL ReadGood = FALSE;
+			BOOL WriteGood = FALSE;
+
+			ReadGood = VarRec.Read(m_FileHandle);
+			if (ReadGood) {
+				// make sure this record is a type to copy
+				if (TestVariableRecordType(VarRec.RecordID, RecordTypes)) {
+					WriteGood = VarRec.WriteHeader(OutputFileHandle);
+
+					// copy data for record
+					if (WriteGood) {
+						for (int i = 0; i < VarRec.RecordLengthAfterHeader; i ++) {
+							ReadCnt += fread(&c, sizeof(unsigned char), 1, m_FileHandle);
+							WriteCnt += fwrite(&c, sizeof(unsigned char), 1, OutputFileHandle);
+						}
+						
+						if (ReadCnt != WriteCnt) {
+							WriteGood = FALSE;
+							WriteCnt = -55;			// forces return value of -1
+						}
+					}
+					return(54 + WriteCnt);
+				}
+				else
+					return(0);		// not a record type we are copying
+			}
+			else
+				return(-1);			// error...couldn't read record header
+		}
+		return(-1);					// error...couldn't jumpt to start of record
+	}
+	return(-1);						// error...LASFormatFile not valid or bad record index
+}
+
 BOOL CLASVariableLengthRecord::Read(FILE *FileHandle)
 {
 	BOOL retcode = FALSE;
@@ -497,6 +570,44 @@ BOOL CLASVariableLengthRecord::Read(FILE *FileHandle)
 	// add terminators
 	UserID[16] = '\0';
 	Description[32] = '\0';
+
+	if (cnt == 51)
+		retcode = TRUE;
+
+	return(retcode);
+}
+
+BOOL CLASVariableLengthRecord::ReadHeader(FILE *FileHandle)
+{
+	BOOL retcode = FALSE;
+
+	int cnt = 0;
+	cnt += fread(&RecordSignature, sizeof(ushort), 1, FileHandle);
+	cnt += fread(UserID, sizeof(char), 16, FileHandle);
+	cnt += fread(&RecordID, sizeof(ushort), 1, FileHandle);
+	cnt += fread(&RecordLengthAfterHeader, sizeof(ushort), 1, FileHandle);
+	cnt += fread(Description, sizeof(char), 32, FileHandle);
+
+	// add terminators
+	UserID[16] = '\0';
+	Description[32] = '\0';
+
+	if (cnt == 51)
+		retcode = TRUE;
+
+	return(retcode);
+}
+
+BOOL CLASVariableLengthRecord::WriteHeader(FILE *FileHandle)
+{
+	BOOL retcode = FALSE;
+
+	int cnt = 0;
+	cnt += fwrite(&RecordSignature, sizeof(ushort), 1, FileHandle);
+	cnt += fwrite(UserID, sizeof(char), 16, FileHandle);
+	cnt += fwrite(&RecordID, sizeof(ushort), 1, FileHandle);
+	cnt += fwrite(&RecordLengthAfterHeader, sizeof(ushort), 1, FileHandle);
+	cnt += fwrite(Description, sizeof(char), 32, FileHandle);
 
 	if (cnt == 51)
 		retcode = TRUE;
@@ -554,6 +665,33 @@ BOOL CLASPointDataRecordFormatAll::Write(FILE *FileHandle, int Format)
 		return(WriteAdditionalValues(FileHandle, Format));
 	else
 		return(FALSE);
+}
+
+CLASPointDataRecordFormatAll& CLASPointDataRecordFormatAll::operator=(CLASPointDataRecordFormatAll& src)
+{
+	X = src.X;
+	Y = src.Y;
+	Z = src.Z;
+	Intensity = src.Intensity;
+	ReturnBitInfo = src.ReturnBitInfo;
+	Classification = src.Classification;
+	ScanAngleRank = src.ScanAngleRank;
+	FileMarker = src.FileMarker;
+	UserBitField = src.UserBitField;
+	ReturnNumber = src.ReturnNumber;
+	NumberOfReturns = src.NumberOfReturns;
+	ScanDirectionFlag = src.ScanDirectionFlag;
+	EdgeOfFlightLineFlag = src.EdgeOfFlightLineFlag;
+	V11Classification = src.V11Classification;
+	V11Synthetic = src.V11Synthetic;
+	V11KeyPoint = src.V11KeyPoint;
+	V11Withheld = src.V11Withheld;
+	GPSTime = src.GPSTime;
+	Red = src.Red;
+	Green = src.Green;
+	Blue = src.Blue;
+
+	return *this;
 }
 
 BOOL CLASPointDataRecordFormatAll::WriteAdditionalValues(FILE *FileHandle, int Format)
